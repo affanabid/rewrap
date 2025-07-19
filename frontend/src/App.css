@@ -1,0 +1,408 @@
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0.5rem;
+  text-align: center;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+
+.dashboard-container {
+  max-width: 1200px; /* Wider container */
+  margin: 20px auto;
+  padding: 30px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+  color: #333;
+  font-family: 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+h1 {
+  font-size: 2.8rem;
+  color: #1DB954; /* Spotify green */
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+h2 {
+  font-size: 2rem;
+  color: #222;
+  margin-top: 25px;
+  margin-bottom: 20px;
+}
+
+h3 {
+  font-size: 1.6rem;
+  color: #444;
+  margin-top: 35px;
+  margin-bottom: 15px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+}
+
+.auth-section {
+  text-align: center;
+  margin-top: 50px;
+}
+
+.dashboard-section {
+  margin-top: 40px;
+  padding: 20px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+}
+
+.avatar {
+  border-radius: 50%;
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border: 3px solid #1DB954;
+  box-shadow: 0 0 15px rgba(29, 185, 84, 0.3);
+  margin-top: 15px;
+}
+
+.select-container {
+  margin: 25px 0;
+  padding: 15px;
+  background-color: #eef;
+  border-radius: 8px;
+  display: inline-block;
+}
+
+.select-container label {
+  font-size: 1.1rem;
+  margin-right: 10px;
+  color: #555;
+}
+
+.select-container select {
+  padding: 8px 12px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  font-size: 1rem;
+  background-color: white;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.select-container select:focus {
+  outline: none;
+  border-color: #1DB954;
+  box-shadow: 0 0 0 2px rgba(29, 185, 84, 0.2);
+}
+
+.create-playlist-button {
+  padding: 12px 25px;
+  font-size: 1rem;
+  background-color: #1DB954;
+  color: white;
+  border: none;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  margin-top: 20px;
+  margin-bottom: 30px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.create-playlist-button:hover {
+  background-color: #169e46;
+  transform: translateY(-2px);
+}
+
+.tracks-list, .artists-list {
+  list-style: none;
+  padding: 0;
+  display: grid; /* Use grid for layout */
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); /* Responsive grid */
+  gap: 20px; /* Space between grid items */
+  margin-top: 25px;
+}
+
+.tracks-list li, .artists-list li {
+  display: flex;
+  flex-direction: column; /* Stack content vertically */
+  align-items: center; /* Center horizontally */
+  background-color: #ffffff;
+  border: 1px solid #eee;
+  border-radius: 10px; /* Softer corners */
+  padding: 15px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  font-size: 1rem;
+  color: #444;
+  text-align: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease; /* Smooth transitions */
+}
+
+.tracks-list li:hover, .artists-list li:hover {
+  transform: translateY(-5px); /* Lift effect on hover */
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12); /* More prominent shadow on hover */
+}
+
+.tracks-list li img, .artists-list li img {
+  border-radius: 50%;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.artists-list li img {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+}
+
+.tracks-list li img {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+}
+
+.track-details {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-grow: 1; /* Allow content to grow */
+  padding: 0 10px; /* Add some horizontal padding */
+  margin-bottom: 5px; /* Space between text and image */
+}
+
+.track-name {
+  font-weight: bold;
+  margin-bottom: 5px; /* Space between track name and artists */
+  white-space: normal; /* Allow text wrapping */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2; /* Limit to 2 lines */
+  -webkit-box-orient: vertical;
+  line-height: 1.2em; /* Adjust line height for consistent spacing */
+  height: 2.4em; /* Max height for 2 lines (2 * line-height) */
+}
+
+.track-artists {
+  font-size: 0.9em;
+  color: #666;
+  white-space: normal; /* Allow text wrapping */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 1; /* Limit artists to 1 line */
+  -webkit-box-orient: vertical;
+}
+
+.duration-box {
+  margin: 35px 0;
+  padding: 20px;
+  border: 1px solid #1DB954;
+  border-radius: 10px;
+  background-color: #e6ffe6; /* Light green background */
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(29, 185, 84, 0.1);
+}
+
+.duration-box h3 {
+  color: #169e46;
+  margin-bottom: 10px;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.duration-box p.large-text {
+  font-size: 2.2rem;
+  font-weight: bold;
+  color: #1DB954;
+  margin: 10px 0;
+}
+
+.duration-box p.small-text {
+  font-size: 0.95rem;
+  color: #666;
+}
+
+/* --- Responsive Adjustments --- */
+@media (max-width: 768px) {
+  .dashboard-container {
+    padding: 15px;
+    margin: 10px auto; /* Reduce margin on smaller screens */
+    border-radius: 8px;
+  }
+
+  h1 {
+    font-size: 2rem;
+    margin-bottom: 20px;
+  }
+
+  h2 {
+    font-size: 1.6rem;
+    margin-top: 20px;
+    margin-bottom: 15px;
+  }
+
+  h3 {
+    font-size: 1.3rem;
+    margin-top: 30px;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+  }
+
+  .select-container {
+    padding: 10px;
+    margin: 15px 0;
+  }
+
+  .select-container label {
+    font-size: 1rem;
+  }
+
+  .select-container select {
+    padding: 6px 10px;
+    font-size: 0.9rem;
+  }
+
+  .create-playlist-button {
+    padding: 10px 20px;
+    font-size: 0.95rem;
+    margin-top: 15px;
+    margin-bottom: 20px;
+  }
+
+  .dashboard-section {
+    padding: 15px;
+    margin-bottom: 20px;
+  }
+
+  .artists-list, .tracks-list {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); /* Smaller grid items for mobile */
+    gap: 15px;
+  }
+
+  .artists-list li img {
+    width: 60px;
+    height: 60px;
+  }
+
+  .tracks-list li img {
+    width: 40px;
+    height: 40px;
+  }
+
+  .tracks-list li, .artists-list li {
+    padding: 10px;
+    font-size: 0.9rem;
+  }
+
+  .track-details {
+    padding: 0 5px;
+  }
+
+  .track-name {
+    font-size: 0.95rem;
+    line-height: 1.1em;
+    height: 2.2em;
+  }
+
+  .track-artists {
+    font-size: 0.8em;
+  }
+
+  .duration-box {
+    margin: 25px 0;
+    padding: 15px;
+  }
+
+  .duration-box h3 {
+    font-size: 1.2rem;
+  }
+
+  .duration-box p.large-text {
+    font-size: 1.8rem;
+  }
+
+  .duration-box p.small-text {
+    font-size: 0.85rem;
+  }
+
+  /* Modal adjustments for small screens */
+  .modal-content {
+    padding: 20px;
+    max-width: 300px;
+  }
+
+  .modal-content h2 {
+    font-size: 1.5rem;
+    margin-bottom: 15px;
+  }
+
+  .playlist-name-input {
+    padding: 10px;
+    font-size: 0.9rem;
+    margin-bottom: 20px;
+  }
+
+  .modal-button {
+    padding: 10px 20px;
+    font-size: 0.9rem;
+  }
+
+  /* Notification adjustments for small screens */
+  .notification-content {
+    padding: 20px;
+    max-width: 280px;
+  }
+
+  .notification-content p {
+    font-size: 1rem;
+    margin-bottom: 20px;
+  }
+
+  .notification-button {
+    padding: 8px 15px;
+    font-size: 0.85rem;
+  }
+
+  /* New wrapper for fixed-width scrollable charts */
+  .chart-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch; /* For smoother scrolling on iOS */
+    padding-bottom: 10px; /* Add some padding for the scrollbar */
+  }
+}
