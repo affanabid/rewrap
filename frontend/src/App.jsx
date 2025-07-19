@@ -105,7 +105,7 @@ function App() {
 
   const checkAuthStatus = async () => {
     try {
-      const res = await fetch('${API_BASE_URL}/me', {
+      const res = await fetch(`${API_BASE_URL}/me`, {
         credentials: 'include',
       });
       if (res.ok) {
@@ -141,7 +141,7 @@ function App() {
   }, [timeRange, loggedIn]);
 
   const handleLogin = () => {
-    window.location.href = '${API_BASE_URL}/login';
+    window.location.href = `${API_BASE_URL}/login`;
   };
 
   const handleTimeRangeChange = (e) => {
@@ -166,7 +166,7 @@ function App() {
     const trackUris = topTracks.map(track => track.uri);
 
     try {
-      const res = await fetch('${API_BASE_URL}/create-playlist', {
+      const res = await fetch(`${API_BASE_URL}/create-playlist`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
