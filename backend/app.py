@@ -50,7 +50,7 @@ def callback():
     code = request.args.get("code")
     token_info = sp_oauth.get_access_token(code)
     session["token_info"] = token_info
-    return redirect(f"{FRONTEND_URL}")
+    return redirect(f"{FRONTEND_URL}/dashboard")
 
 @app.route("/me")
 def me():
