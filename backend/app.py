@@ -7,12 +7,13 @@ import time
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET", "supersecret")
-CORS(app, supports_credentials=True)
+CORS(app, origins=os.getenv("FRONTEND_URL"), supports_credentials=True)
 
 # Configure environment variables before running
 SPOTIPY_CLIENT_ID = os.getenv("SPOTIPY_CLIENT_ID")
 SPOTIPY_CLIENT_SECRET = os.getenv("SPOTIPY_CLIENT_SECRET")
 SPOTIPY_REDIRECT_URI = os.getenv("SPOTIPY_REDIRECT_URI", "http://127.0.0.1:5000/callback")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://127.0.0.1:5173")
 
 scope = "user-top-read playlist-modify-public user-read-playback-state user-library-read"
 
@@ -49,7 +50,7 @@ def callback():
     code = request.args.get("code")
     token_info = sp_oauth.get_access_token(code)
     session["token_info"] = token_info
-    return redirect("http://127.0.0.1:5173/dashboard")
+    return redirect(f"{FRONTEND_URL}/dashboard")
 
 @app.route("/me")
 def me():
