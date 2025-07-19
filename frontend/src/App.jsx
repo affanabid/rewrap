@@ -15,6 +15,7 @@ function App() {
   const [notification, setNotification] = useState({ isOpen: false, message: '', playlistUrl: '' });
   const [artistsByTrackCountData, setArtistsByTrackCountData] = useState([]);
   const [trackDurationData, setTrackDurationData] = useState([]);
+  const API_BASE_URL = 'https://rewrap.onrender.com';
 
   const calculateTotalTrackDuration = (tracks) => {
     const totalMs = tracks.reduce((sum, track) => sum + track.duration_ms, 0);
@@ -65,7 +66,7 @@ function App() {
     if (!user) return;
 
     try {
-      const artistsRes = await fetch(`http://127.0.0.1:5000/top-artists?time_range=${selectedTimeRange}`, {
+      const artistsRes = await fetch(`${API_BASE_URL}/top-artists?time_range=${selectedTimeRange}`, {
         credentials: 'include',
       });
       if (artistsRes.ok) {
@@ -76,7 +77,7 @@ function App() {
         setTopArtists([]);
       }
 
-      const tracksRes = await fetch(`http://127.0.0.1:5000/top-tracks?time_range=${selectedTimeRange}`, {
+      const tracksRes = await fetch(`${API_BASE_URL}/top-tracks?time_range=${selectedTimeRange}`, {
         credentials: 'include',
       });
       if (tracksRes.ok) {
@@ -104,7 +105,7 @@ function App() {
 
   const checkAuthStatus = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:5000/me', {
+      const res = await fetch('${API_BASE_URL}/me', {
         credentials: 'include',
       });
       if (res.ok) {
@@ -140,7 +141,7 @@ function App() {
   }, [timeRange, loggedIn]);
 
   const handleLogin = () => {
-    window.location.href = 'http://127.0.0.1:5000/login';
+    window.location.href = '${API_BASE_URL}/login';
   };
 
   const handleTimeRangeChange = (e) => {
@@ -165,7 +166,7 @@ function App() {
     const trackUris = topTracks.map(track => track.uri);
 
     try {
-      const res = await fetch('http://127.0.0.1:5000/create-playlist', {
+      const res = await fetch('${API_BASE_URL}/create-playlist', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
