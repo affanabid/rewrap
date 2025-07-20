@@ -1,8 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './PlaylistModal.css'; // Import the CSS for styling
 
 const PlaylistModal = ({ isOpen, onClose, onSubmit, defaultPlaylistName }) => {
+  // const [playlistName, setPlaylistName] = useState(defaultPlaylistName);
   const [playlistName, setPlaylistName] = useState(defaultPlaylistName);
+
+useEffect(() => {
+  setPlaylistName(defaultPlaylistName);
+}, [defaultPlaylistName, isOpen]);
 
   if (!isOpen) return null;
 

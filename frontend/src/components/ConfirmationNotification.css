@@ -12,10 +12,10 @@
 }
 
 .notification-content {
-  background: white;
+  background: var(--card-bg);
   padding: 30px;
   border-radius: 10px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.12);
   text-align: center;
   width: 90%;
   max-width: 350px;
@@ -26,7 +26,7 @@
 .notification-content p {
   margin-top: 0;
   font-size: 1.1rem;
-  color: #333;
+  color: var(--text-main);
   margin-bottom: 25px;
 }
 
@@ -46,18 +46,18 @@
 }
 
 .notification-button.primary {
-  background-color: #1DB954;
+  background-color: var(--primary);
   color: white;
 }
 
 .notification-button.primary:hover {
-  background-color: #169e46;
+  background-color: var(--primary-dark);
   transform: translateY(-2px);
 }
 
 .notification-button.secondary {
-  background-color: #e0e0e0;
-  color: #333;
+  background-color: var(--border);
+  color: var(--text-main);
 }
 
 .notification-button.secondary:hover {

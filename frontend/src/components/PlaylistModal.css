@@ -12,10 +12,10 @@
 }
 
 .modal-content {
-  background: white;
+  background: var(--card-bg);
   padding: 30px;
   border-radius: 10px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.12);
   text-align: center;
   width: 90%;
   max-width: 400px;
@@ -32,7 +32,7 @@
 
 .modal-content h2 {
   margin-top: 0;
-  color: #333;
+  color: var(--text-main);
   font-size: 1.8rem;
   margin-bottom: 20px;
 }
@@ -41,16 +41,18 @@
   width: calc(100% - 20px);
   padding: 12px 10px;
   margin-bottom: 25px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 1rem;
   box-sizing: border-box;
+  background: var(--background);
+  color: var(--text-main);
 }
 
 .playlist-name-input:focus {
   outline: none;
-  border-color: #1DB954;
-  box-shadow: 0 0 0 3px rgba(29, 185, 84, 0.2);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(29, 185, 84, 0.15);
 }
 
 .modal-buttons {
@@ -69,18 +71,18 @@
 }
 
 .modal-button.primary {
-  background-color: #1DB954;
+  background-color: var(--primary);
   color: white;
 }
 
 .modal-button.primary:hover {
-  background-color: #169e46;
+  background-color: var(--primary-dark);
   transform: translateY(-2px);
 }
 
 .modal-button.secondary {
-  background-color: #e0e0e0;
-  color: #333;
+  background-color: var(--border);
+  color: var(--text-main);
 }
 
 .modal-button.secondary:hover {

@@ -15,7 +15,10 @@ function Dashboard() {
   const [notification, setNotification] = useState({ isOpen: false, message: '', playlistUrl: '' });
   const [artistsByTrackCountData, setArtistsByTrackCountData] = useState([]);
   const [trackDurationData, setTrackDurationData] = useState([]);
-  const API_BASE_URL = 'https://rewrap.onrender.com';
+  // const API_BASE_URL = 'https://rewrap.onrender.com';
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://rewrap.onrender.com';
+
+  const PIE_COLORS = ['#93B1A6', '#5C8374', '#3a6363']; // Example: green, teal, yellow
 
   const calculateTotalTrackDuration = (tracks) => {
     const totalMs = tracks.reduce((sum, track) => sum + track.duration_ms, 0);
@@ -217,7 +220,7 @@ function Dashboard() {
 
   return (
     <div className="dashboard-container">
-      <h1>Spotify Wrapped on Demand</h1>
+      <h1>Spotify Re-Wrapped </h1>
       {!loggedIn ? (
         <div className="auth-section">
         <button onClick={handleLogin}>Login with Spotify</button>
@@ -225,7 +228,7 @@ function Dashboard() {
       ) : (
         <div className="dashboard-content">
           <h2>Welcome, {user.display_name || user.id}!</h2>
-          <p>Email: {user.email}</p>
+          {/* <p>Email: {user.email}</p> */}
           {user.images?.[0]?.url && (
             <img src={user.images[0].url} alt="avatar" className="avatar" />
           )}
@@ -264,7 +267,7 @@ function Dashboard() {
                     <YAxis />
                     <Tooltip formatter={(value) => `${value} tracks`} />
                     <Legend />
-                    <Bar dataKey="trackCount" fill="#8884d8" name="Number of Tracks" />
+                    <Bar dataKey="trackCount" fill="#5C8374" name="Number of Tracks" />
                   </BarChart>
                 </div>
                 <ol className="artists-list">
@@ -311,8 +314,11 @@ function Dashboard() {
                         dataKey="count"
                         label
                       >
-                        {trackDurationData.map((entry, index) => (
+                        {/* {trackDurationData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={`hsl(${(index * 360) / trackDurationData.length}, 70%, 50%)`} />
+                        ))} */}
+                        {trackDurationData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                         ))}
                       </Pie>
                       <Tooltip formatter={(value) => `${value} tracks`} />
