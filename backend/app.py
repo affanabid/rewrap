@@ -11,7 +11,9 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="None",
     SESSION_COOKIE_SECURE=True,
 )
-CORS(app, origins=os.getenv("FRONTEND_URL", "https://rewrap-puce.vercel.app"), supports_credentials=True)
+# CORS(app, origins=os.getenv("FRONTEND_URL", "https://rewrap-puce.vercel.app"), supports_credentials=True)
+CORS(app, origins=os.getenv("https://rewrap-puce.vercel.app"), supports_credentials=True)
+
 
 # Configure environment variables before running
 SPOTIPY_CLIENT_ID = os.getenv("SPOTIPY_CLIENT_ID")
