@@ -12,7 +12,7 @@ function Login() {
 
   return (
     <div className="auth-section">
-      <h1>Spotify Wrapped on Demand</h1>
+      <h1>Spotify Re-Wrapped</h1>
       <button onClick={handleLogin}>Login with Spotify</button>
     </div>
   );

@@ -266,7 +266,7 @@ function Dashboard() {
                     <XAxis dataKey="name" interval={0} angle={-45} textAnchor="end" height={80} />
                     <YAxis />
                     <Tooltip formatter={(value) => `${value} tracks`} />
-                    <Legend />
+                    {/* <Legend /> */}
                     <Bar dataKey="trackCount" fill="#5C8374" name="Number of Tracks" />
                   </BarChart>
                 </div>
