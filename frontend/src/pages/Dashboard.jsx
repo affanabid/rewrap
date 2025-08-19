@@ -1,3 +1,4 @@
+//Dashboard.jsx
 import React, { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import PlaylistModal from '../components/PlaylistModal';
@@ -15,10 +16,12 @@ function Dashboard() {
   const [notification, setNotification] = useState({ isOpen: false, message: '', playlistUrl: '' });
   const [artistsByTrackCountData, setArtistsByTrackCountData] = useState([]);
   const [trackDurationData, setTrackDurationData] = useState([]);
+  const [genreDistributionData, setGenreDistributionData] = useState([]);
+
   // const API_BASE_URL = 'https://rewrap.onrender.com';
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://rewrap.onrender.com';
 
-  const PIE_COLORS = ['#93B1A6', '#5C8374', '#3a6363']; // Example: green, teal, yellow
+  const PIE_COLORS = ['#aeebd4', '#4fa8a8', '#3a6363', '#78bfbf', '#759c98', '#16524b'];
 
   const calculateTotalTrackDuration = (tracks) => {
     const totalMs = tracks.reduce((sum, track) => sum + track.duration_ms, 0);
@@ -73,8 +76,12 @@ function Dashboard() {
         credentials: 'include',
       });
       if (artistsRes.ok) {
+        // const artistsData = await artistsRes.json();
+        // setTopArtists(artistsData.items);
         const artistsData = await artistsRes.json();
-        setTopArtists(artistsData.items);
+        setTopArtists(artistsData.artists || []);
+        setGenreDistributionData(artistsData.genre_distribution || []);
+
       } else {
         console.error('Failed to fetch top artists:', artistsRes.status);
         setTopArtists([]);
@@ -249,7 +256,7 @@ function Dashboard() {
           )}
 
           <div className="dashboard-section">
-            <h3>Your Top Artists by Track Count ({getTimeRangeDisplayName(timeRange)})</h3>
+            <h3>Your Top 10 Artists by Track Count ({getTimeRangeDisplayName(timeRange)})</h3>
             {topArtists.length > 0 && artistsByTrackCountData.length > 0 ? (
               <>
                 <div className="chart-wrapper">
@@ -326,7 +333,7 @@ function Dashboard() {
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
-                <h3>Your Top Tracks List ({getTimeRangeDisplayName(timeRange)})</h3>
+                <h3>Your Top 20 Tracks List ({getTimeRangeDisplayName(timeRange)})</h3>
                 <ol className="tracks-list">
                   {topTracks.map((track) => (
                     <li key={track.id}>
@@ -345,7 +352,38 @@ function Dashboard() {
               <p>No track data available or loading...</p>
             )}
           </div>
+
+          {genreDistributionData.length > 0 && (
+            <div className="dashboard-section">
+              <h3>Top Artist Genre Distribution ({getTimeRangeDisplayName(timeRange)})</h3>
+              <div className="chart-wrapper">
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={genreDistributionData}
+                      dataKey="count"
+                      nameKey="genre"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={90}
+                      fill="#8884d8"
+                      label
+                    >
+                      {genreDistributionData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => `${value} artists`} />
+                    {/* <Legend /> */}
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
         </div>
+
+        
       )}
       <PlaylistModal
         isOpen={isModalOpen}

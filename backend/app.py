@@ -1,9 +1,12 @@
+#app.py
+
 from flask import Flask, request, jsonify, session, redirect
 from flask_cors import CORS
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 import os
 import time
+from collections import Counter
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET", "supersecret")
@@ -12,13 +15,15 @@ app.config.update(
     SESSION_COOKIE_SECURE=True,
 )
 # CORS(app, origins=os.getenv("FRONTEND_URL", "https://rewrap-puce.vercel.app"), supports_credentials=True)
-CORS(app, origins="https://rewrap-puce.vercel.app", supports_credentials=True)
-
+# CORS(app, origins="https://rewrap-puce.vercel.app", supports_credentials=True)
+# CORS(app, origins="http://127.0.0.1:5173", supports_credentials=True)
+CORS(app, origins=["https://rewrap-puce.vercel.app", "http://127.0.0.1:5173"], supports_credentials=True)
 
 # Configure environment variables before running
 SPOTIPY_CLIENT_ID = os.getenv("SPOTIPY_CLIENT_ID")
 SPOTIPY_CLIENT_SECRET = os.getenv("SPOTIPY_CLIENT_SECRET")
-SPOTIPY_REDIRECT_URI = os.getenv("SPOTIPY_REDIRECT_URI", "http://127.0.0.1:5000/callback")
+# SPOTIPY_REDIRECT_URI = os.getenv("SPOTIPY_REDIRECT_URI", "http://127.0.0.1:5000/callback")
+SPOTIPY_REDIRECT_URI='https://rewrap.onrender.com/callback'
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://127.0.0.1:5173")
 
 scope = "user-top-read playlist-modify-public user-read-playback-state user-library-read"
@@ -35,7 +40,7 @@ def get_spotify_token():
         return None
 
     now = int(time.time())
-    is_expired = token_info['expires_at'] - now < 60 # Check if token expires in less than 60 seconds
+    is_expired = token_info['expires_at'] - now < 60 
 
     if is_expired:
         sp_oauth = get_spotify_oauth()
@@ -75,7 +80,7 @@ def top_tracks():
     token_info = get_spotify_token()
     if not token_info:
         return jsonify({"error": "Unauthorized"}), 401
-    time_range = request.args.get('time_range', 'short_term') # Get time_range from query params
+    time_range = request.args.get('time_range', 'short_term') 
     sp = spotipy.Spotify(auth=token_info['access_token'])
     results = sp.current_user_top_tracks(limit=20, time_range=time_range)
     return jsonify(results)
@@ -85,10 +90,21 @@ def top_artists():
     token_info = get_spotify_token()
     if not token_info:
         return jsonify({"error": "Unauthorized"}), 401
-    time_range = request.args.get('time_range', 'short_term') # Get time_range from query params
+    time_range = request.args.get('time_range', 'short_term') 
     sp = spotipy.Spotify(auth=token_info['access_token'])
-    results = sp.current_user_top_artists(limit=10, time_range=time_range) # Fetch top 10 artists
-    return jsonify(results)
+    results = sp.current_user_top_artists(limit=10, time_range=time_range) 
+    # return jsonify(results)
+
+    genre_counter = Counter()
+    for artist in results['items']:
+        genre_counter.update(artist['genres'])
+
+    genre_data = [{"genre": genre, "count": count} for genre, count in genre_counter.most_common()]
+
+    return jsonify({
+        "artists": results['items'],
+        "genre_distribution": genre_data
+    })
 
 @app.route("/create-playlist", methods=['POST'])
 def create_playlist():
