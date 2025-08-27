@@ -7,47 +7,79 @@ from spotipy.oauth2 import SpotifyOAuth
 import os
 import time
 from collections import Counter
+from flask_session import Session
+from spotipy.cache_handler import CacheHandler
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET", "supersecret")
-app.config.update(
-    SESSION_COOKIE_SAMESITE="None",
-    SESSION_COOKIE_SECURE=True,
-)
+
+ENV = os.getenv("ENV", "dev")  # "dev" or "prod"
+
+if ENV == "prod":
+    app.config.update(
+        SESSION_TYPE="filesystem",      # or "redis" if you prefer
+        # SESSION_REDIS=redis.from_url(os.getenv("REDIS_URL")),  # if using Redis
+        SESSION_PERMANENT=False,
+        SESSION_COOKIE_NAME="rewrap_session",
+        SESSION_COOKIE_SAMESITE="None",
+        SESSION_COOKIE_SECURE=True,     # cookie only over HTTPS
+    )
+else:
+    # local dev: do NOT force Secure cookies over http://localhost
+    app.config.update(
+        SESSION_TYPE="filesystem",
+        SESSION_PERMANENT=False,
+        SESSION_COOKIE_NAME="rewrap_session",
+        SESSION_COOKIE_SAMESITE="Lax",
+        SESSION_COOKIE_SECURE=False,
+    )
+
+Session(app)
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://127.0.0.1:5173")
+# FRONTEND_URL = "http://127.0.0.1:5173"
+
 # CORS(app, origins=os.getenv("FRONTEND_URL", "https://rewrap-puce.vercel.app"), supports_credentials=True)
 # CORS(app, origins="https://rewrap-puce.vercel.app", supports_credentials=True)
 # CORS(app, origins="http://127.0.0.1:5173", supports_credentials=True)
-CORS(app, origins=["https://rewrap-puce.vercel.app", "http://127.0.0.1:5173"], supports_credentials=True)
+CORS(app, origins=[FRONTEND_URL], supports_credentials=True)
 
 # Configure environment variables before running
 SPOTIPY_CLIENT_ID = os.getenv("SPOTIPY_CLIENT_ID")
 SPOTIPY_CLIENT_SECRET = os.getenv("SPOTIPY_CLIENT_SECRET")
-# SPOTIPY_REDIRECT_URI = os.getenv("SPOTIPY_REDIRECT_URI", "http://127.0.0.1:5000/callback")
-SPOTIPY_REDIRECT_URI='https://rewrap.onrender.com/callback'
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://127.0.0.1:5173")
+SPOTIPY_REDIRECT_URI = os.getenv("SPOTIPY_REDIRECT_URI")
+# SPOTIPY_REDIRECT_URI='https://rewrap.onrender.com/callback'
+# SPOTIPY_REDIRECT_URI="http://127.0.0.1:5000/callback"
 
 scope = "user-top-read playlist-modify-public user-read-playback-state user-library-read"
+
+class NullCache(CacheHandler):
+    def get_cached_token(self):
+        return None
+    def save_token_to_cache(self, token_info):
+        pass
 
 def get_spotify_oauth():
     return SpotifyOAuth(client_id=SPOTIPY_CLIENT_ID,
                             client_secret=SPOTIPY_CLIENT_SECRET,
                             redirect_uri=SPOTIPY_REDIRECT_URI,
-                            scope=scope)
+                            scope=scope,
+                            cache_handler=NullCache(),  # <— important
+                            open_browser=False)
 
 def get_spotify_token():
-    token_info = session.get("token_info", None)
+    token_info = session.get("token_info")
     if not token_info:
         return None
 
     now = int(time.time())
-    is_expired = token_info['expires_at'] - now < 60 
-
+    is_expired = token_info['expires_at'] - now < 60
     if is_expired:
         sp_oauth = get_spotify_oauth()
         token_info = sp_oauth.refresh_access_token(token_info['refresh_token'])
-        session["token_info"] = token_info # Update session with new token info
+        session["token_info"] = token_info  # stays per-user
 
     return token_info
+
 
 @app.route("/login")
 def login():
@@ -127,6 +159,12 @@ def create_playlist():
         return jsonify({"message": "Playlist created successfully!", "playlist_url": playlist['external_urls']['spotify']}), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+@app.route("/logout", methods=["POST"])
+def logout():
+    session.clear()
+    return "", 204
+
 
 if __name__ == '__main__':
     app.run(debug=True)

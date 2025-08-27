@@ -4,6 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import PlaylistModal from '../components/PlaylistModal';
 import ConfirmationNotification from '../components/ConfirmationNotification';
 import '../App.css';
+import { API_BASE_URL } from '../config';
 
 function Dashboard() {
   const [loggedIn, setLoggedIn] = useState(false);
@@ -19,7 +20,7 @@ function Dashboard() {
   const [genreDistributionData, setGenreDistributionData] = useState([]);
 
   // const API_BASE_URL = 'https://rewrap.onrender.com';
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://rewrap.onrender.com';
+  // const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://rewrap.onrender.com';
 
   const PIE_COLORS = ['#aeebd4', '#4fa8a8', '#3a6363', '#78bfbf', '#759c98', '#16524b'];
 
@@ -152,6 +153,14 @@ function Dashboard() {
 
   const handleLogin = () => {
     window.location.href = `${API_BASE_URL}/login`;
+  };
+
+  const handleLogout = async () => {
+    await fetch(`${API_BASE_URL}/logout`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+    window.location.href = '/';
   };
 
   const handleTimeRangeChange = (e) => {
@@ -385,6 +394,8 @@ function Dashboard() {
 
         
       )}
+
+      <button onClick={handleLogout}>logout</button>
       <PlaylistModal
         isOpen={isModalOpen}
         onClose={handleModalClose}
