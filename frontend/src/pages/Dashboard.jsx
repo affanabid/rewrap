@@ -261,8 +261,7 @@ function Dashboard() {
               <>
                 <div className="chart-wrapper">
                   <BarChart
-                  // style={{minWidth: '700px'}}
-                    width={700}
+                    className='bar-chart'
                     height={300}
                     data={artistsByTrackCountData}
                     margin={{

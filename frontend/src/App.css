@@ -442,4 +442,11 @@ h3 {
     -webkit-overflow-scrolling: touch;
     padding-bottom: 10px;
   }
+
+}
+
+@media (max-width: 476px) {
+  .bar-chart{
+    width: '700px';
+  }
 }
