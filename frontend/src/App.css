@@ -291,7 +291,11 @@ h3 {
   color: #000000;
 }
 
-/* --- Responsive Adjustments --- */
+.chart-wrapper {
+  display: flex;
+  justify-content: center;
+}
+
 @media (max-width: 768px) {
 
   #root{
@@ -420,7 +424,6 @@ h3 {
     font-size: 0.9rem;
   }
 
-  /* Notification adjustments for small screens */
   .notification-content {
     padding: 20px;
     max-width: 280px;
@@ -436,17 +439,17 @@ h3 {
     font-size: 0.85rem;
   }
 
-  /* New wrapper for fixed-width scrollable charts */
   .chart-wrapper {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     padding-bottom: 10px;
+    width: '700px';
   }
 
 }
 
-@media (max-width: 476px) {
+/* @media (max-width: 476px) {
   .bar-chart{
     width: '700px';
   }
-}
+} */

@@ -262,6 +262,7 @@ function Dashboard() {
                 <div className="chart-wrapper">
                   <BarChart
                     className='bar-chart'
+                    width={700}
                     height={300}
                     data={artistsByTrackCountData}
                     margin={{
