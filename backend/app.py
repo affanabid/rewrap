@@ -9,6 +9,9 @@ import time
 from collections import Counter
 from flask_session import Session
 from spotipy.cache_handler import CacheHandler
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET", "supersecret")
@@ -36,12 +39,11 @@ else:
 
 Session(app)
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://127.0.0.1:5173")
-# FRONTEND_URL = "http://127.0.0.1:5173"
 
 # CORS(app, origins=os.getenv("FRONTEND_URL", "https://rewrap-puce.vercel.app"), supports_credentials=True)
 # CORS(app, origins="https://rewrap-puce.vercel.app", supports_credentials=True)
 # CORS(app, origins="http://127.0.0.1:5173", supports_credentials=True)
-CORS(app, origins=[FRONTEND_URL], supports_credentials=True)
+CORS(app, origins=[FRONTEND_URL, "https://rewrap-puce.vercel.app", "http://127.0.0.1:5173"], supports_credentials=True)
 
 # Configure environment variables before running
 SPOTIPY_CLIENT_ID = os.getenv("SPOTIPY_CLIENT_ID")
@@ -167,4 +169,4 @@ def logout():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()
