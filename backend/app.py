@@ -316,13 +316,13 @@ def register_spotify_user():
     if automation_success:
         return jsonify({
             "success": True,
-            "message": f"User '{name}' <{email}> successfully registered on Spotify Developer Dashboard!",
+            "message": f"Registration complete! Access granted for {email}.",
             "removed_user": removed_user
         }), 200
     else:
         return jsonify({
             "success": True,
-            "message": f"Access request received for {email}! An automated notification has been sent to the admin. You will be able to log in shortly.",
+            "message": f"Access request received for {email}. Your account will be enabled shortly.",
             "removed_user": None
         }), 200
 

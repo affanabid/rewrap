@@ -293,7 +293,7 @@ def add_spotify_user(
 
             return AddUserResult(
                 success=True,
-                message=f"User '{name}' <{email}> added successfully.",
+                message=f"Access granted for {email}.",
                 removed_user=removed_user,
             )
 
