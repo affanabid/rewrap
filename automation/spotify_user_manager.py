@@ -82,6 +82,8 @@ def add_spotify_user(
     Raises no exceptions — all errors are caught and returned in the result.
     """
 
+    backend_env = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "backend", ".env")
+    load_dotenv(backend_env)
     load_dotenv()
 
     sp_email    = spotify_email    or os.getenv("SPOTIFY_DEV_EMAIL")
@@ -107,110 +109,122 @@ def add_spotify_user(
         return AddUserResult(success=False, message=msg)
 
     removed_user: Optional[str] = None
+    session_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".spotify_session")
 
     try:
         with sync_playwright() as pw:
-            log.info("Launching browser (headless=%s)…", headless)
-            browser = pw.chromium.launch(headless=headless)
-            ctx     = browser.new_context(viewport={"width": 1280, "height": 900})
-            page    = ctx.new_page()
+            log.info("Launching browser with persistent session (headless=%s)…", headless)
+            try:
+                ctx = pw.chromium.launch_persistent_context(
+                    user_data_dir=session_dir,
+                    channel="chrome",
+                    headless=headless,
+                    viewport={"width": 1280, "height": 900},
+                    user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+                    args=[
+                        "--disable-blink-features=AutomationControlled",
+                        "--no-sandbox",
+                        "--disable-setuid-sandbox"
+                    ]
+                )
+            except Exception:
+                ctx = pw.chromium.launch_persistent_context(
+                    user_data_dir=session_dir,
+                    headless=headless,
+                    viewport={"width": 1280, "height": 900},
+                    user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+                    args=[
+                        "--disable-blink-features=AutomationControlled",
+                        "--no-sandbox",
+                        "--disable-setuid-sandbox"
+                    ]
+                )
+            page = ctx.pages[0] if ctx.pages else ctx.new_page()
+            page.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
             page.set_default_timeout(TIMEOUT_MS)
             page.set_default_navigation_timeout(NAV_TIMEOUT_MS)
 
-            # ----------------------------------------------------------------
-            # 1. Log in  (Spotify uses a two-step form: username → Continue
-            #             → password → Log In)
-            # ----------------------------------------------------------------
-            log.info("Navigating to Spotify login…")
-            page.goto(LOGIN_URL, wait_until="networkidle")
-            log.info("Login page loaded. URL: %s", page.url)
+            sp_dc_cookie = os.getenv("SPOTIFY_SP_DC")
+            if sp_dc_cookie:
+                log.info("Injecting SPOTIFY_SP_DC session cookie into browser context...")
+                ctx.add_cookies([{
+                    'name': 'sp_dc',
+                    'value': sp_dc_cookie.strip(),
+                    'domain': '.spotify.com',
+                    'path': '/',
+                    'secure': True,
+                    'httpOnly': True
+                }])
 
-            # -- Step 1: fill username and click Continue --
-            log.info("Entering username…")
-            page.wait_for_selector('[data-testid="login-username"]', timeout=TIMEOUT_MS)
-            page.fill('[data-testid="login-username"]', sp_email)
-
-            # Spotify may show a single-page form (username + password both
-            # visible) OR a two-step flow (username → Continue → password).
-            # Detect which we're dealing with.
-            password_visible = page.is_visible('[data-testid="login-password"]')
-
-            if not password_visible:
-                log.info("Two-step login detected — clicking Continue…")
-                # The Continue / Next button sits right after the username field
-                continue_selectors = [
-                    '[data-testid="login-button"]',       # sometimes reused
-                    'button[type="submit"]',
-                    'button:has-text("Continue")',
-                    'button:has-text("Next")',
-                    'button:has-text("Log In")',
-                ]
-                clicked = False
-                for sel in continue_selectors:
-                    try:
-                        el = page.query_selector(sel)
-                        if el and el.is_visible() and el.is_enabled():
-                            el.click()
-                            clicked = True
-                            log.info("Clicked Continue button (selector: %s).", sel)
-                            break
-                    except Exception:
-                        continue
-                if not clicked:
-                    raise RuntimeError(
-                        "Could not find the Continue/Next button on the login page."
-                    )
-
-                # Spotify may now show an OTP/code screen — there's a
-                # "Log in with a password" link below it. Click it.
-                log.info("Looking for 'Log in with a password' link…")
-                use_password_selectors = [
-                    'button:has-text("Log in with a password")',
-                    'a:has-text("Log in with a password")',
-                    '[data-testid="login-with-password"]',
-                    'text=Log in with a password',
-                ]
-                for sel in use_password_selectors:
-                    try:
-                        el = page.wait_for_selector(sel, timeout=5_000, state="visible")
-                        if el:
-                            el.click()
-                            log.info("Clicked 'Log in with a password'.")
-                            break
-                    except Exception:
-                        continue
-
-                # Wait for password field to appear
-                log.info("Waiting for password field…")
-                page.wait_for_selector(
-                    '[data-testid="login-password"]',
-                    timeout=TIMEOUT_MS,
-                    state="visible",
-                )
-
-            # -- Step 2: fill password and submit --
-            log.info("Entering password…")
-            page.fill('[data-testid="login-password"]', sp_password)
-
-            log.info("Clicking Log In button…")
-            page.click('[data-testid="login-button"]')
-            page.wait_for_load_state("networkidle")
-
-            # Verify login succeeded
-            if "accounts.spotify.com/login" in page.url:
-                err_el = page.query_selector('[data-testid="login-error-message"]')
-                err_txt = err_el.inner_text().strip() if err_el else "Unknown login error"
-                raise RuntimeError(f"Login failed: {err_txt}")
-
-            log.info("Login successful. Current URL: %s", page.url)
 
             # ----------------------------------------------------------------
-            # 2. Navigate directly to the User Management page
+            # 1. Check if already logged in via persistent session
             # ----------------------------------------------------------------
-            log.info("Navigating directly to User Management page...")
+            log.info("Navigating to User Management page...")
             page.goto(APP_USERS_URL, wait_until="networkidle")
             page.wait_for_timeout(2000)
+
+            # Check if login is required
+            if "accounts.spotify.com" in page.url or "login" in page.url or page.url.rstrip('/') == "https://developer.spotify.com":
+                log.info("Session expired or unauthenticated. Performing Spotify login...")
+
+                if not headless:
+                    log.info("--------------------------------------------------")
+                    log.info("PLEASE LOG IN TO SPOTIFY IN THE OPEN BROWSER WINDOW.")
+                    log.info("Once logged in, your session cookies will be saved.")
+                    log.info("--------------------------------------------------")
+
+                    page.goto(LOGIN_URL, wait_until="domcontentloaded")
+                    try:
+                        page.wait_for_url(
+                            lambda u: "developer.spotify.com" in u and "accounts.spotify.com" not in u,
+                            timeout=300_000
+                        )
+                        log.info("Authentication successful! Session cookies saved to .spotify_session")
+                        page.wait_for_timeout(3000)
+                    except Exception as e:
+                        log.warning("Timed out waiting for manual login. Will attempt auto-fill... %s", e)
+
+
+                if "developer.spotify.com/dashboard" not in page.url:
+                    page.goto(LOGIN_URL, wait_until="domcontentloaded")
+                    log.info("Entering username…")
+                    page.wait_for_selector('[data-testid="login-username"]', timeout=TIMEOUT_MS)
+                    page.click('[data-testid="login-username"]')
+                    page.keyboard.type(sp_email, delay=50)
+
+                    password_visible = page.is_visible('[data-testid="login-password"]')
+
+                    if not password_visible:
+                        log.info("Two-step login detected — clicking Continue…")
+                        page.click('[data-testid="login-button"]')
+                        page.wait_for_timeout(2000)
+
+                        page_text = page.inner_text("body")
+                        if "Oops! Something went wrong" in page_text or "check out our help area" in page_text:
+                            raise RuntimeError(
+                                "Spotify reCAPTCHA bot security blocked automated login. "
+                                "Please run 'python ../automation/spotify_user_manager.py --no-headless --name \"Admin\" --email \"admin@example.com\"' "
+                                "and log in once in the browser window to save session cookies."
+                            )
+
+                        page.wait_for_selector('[data-testid="login-password"]', timeout=TIMEOUT_MS, state="visible")
+
+                    log.info("Entering password…")
+                    page.click('[data-testid="login-password"]')
+                    page.keyboard.type(sp_password, delay=50)
+
+                    log.info("Clicking Log In button…")
+                    page.click('[data-testid="login-button"]')
+                    page.wait_for_load_state("domcontentloaded")
+
+                log.info("Login successful. Navigating to User Management page...")
+                page.goto(APP_USERS_URL, wait_until="domcontentloaded")
+                page.wait_for_timeout(2000)
+
             log.info("User Management page loaded. URL: %s", page.url)
+
+
 
 
             # ----------------------------------------------------------------
@@ -276,7 +290,6 @@ def add_spotify_user(
             log.info("User '%s' <%s> successfully added.", name, email)
 
             ctx.close()
-            browser.close()
 
             return AddUserResult(
                 success=True,
@@ -421,49 +434,28 @@ def _get_field(page, field_id: str):
 
 
 def _click_add_user(page) -> None:
-    """Click the Add user submit button (button[type=submit] inside the form)."""
-    el = page.query_selector("form button[type='submit']")
+    """Click the Add user submit button."""
+    el = page.query_selector("button:has-text('Add user')") or page.query_selector("form button[type='submit']")
     if el and el.is_enabled():
         el.click()
         return
     raise RuntimeError("Could not find the 'Add user' submit button.")
 
 
-def _wait_for_success(page, email: str, timeout_ms: int = 10_000) -> None:
+def _wait_for_success(page, email: str, timeout_ms: int = 12_000) -> None:
     """
-    Wait for a visible sign that the user was added:
-    - a success toast/alert, OR
-    - the email appearing in the user list
+    Wait for the email to appear in the table/page content.
     """
     deadline = time.time() + timeout_ms / 1000
+    email_lower = email.lower()
     while time.time() < deadline:
-        # Check for toast / alert
-        for sel in [
-            "[role='alert']",
-            "[class*='toast' i]",
-            "[class*='success' i]",
-            "[class*='notification' i]",
-        ]:
-            el = page.query_selector(sel)
-            if el:
-                try:
-                    if el.is_visible():
-                        log.info("Success indicator detected: '%s'", el.inner_text().strip()[:80])
-                        return
-                except Exception:
-                    pass
-
-        # Check for email appearing in the page body
-        if email.lower() in page.content().lower():
-            log.info("Email '%s' found in page content — user added.", email)
+        if email_lower in page.content().lower():
+            log.info("Email '%s' verified in page content — user added successfully.", email)
             return
-
         time.sleep(0.5)
 
-    log.warning(
-        "Could not confirm success via UI indicator, but no errors were raised. "
-        "Proceeding optimistically."
-    )
+    if email_lower not in page.content().lower():
+        raise RuntimeError(f"User '{email}' was submitted but did not appear in the User Management list.")
 
 
 def _remove_first_user(page) -> Optional[str]:
@@ -536,8 +528,9 @@ def _remove_first_user(page) -> Optional[str]:
     remove_btn.click()
     log.info("Clicked 'Remove user' for: %s", removed_email)
 
+    _confirm_removal(page)
     page.wait_for_load_state("networkidle")
-    page.wait_for_timeout(1000)
+    page.wait_for_timeout(2500)
 
     return removed_email
 

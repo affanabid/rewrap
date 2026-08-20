@@ -1,12 +1,15 @@
-//Dashboard.jsx
 import React, { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import PlaylistModal from '../components/PlaylistModal';
 import ConfirmationNotification from '../components/ConfirmationNotification';
+import ShareStoryModal from '../components/ShareStoryModal';
+import Navbar from '../components/Navbar';
+import CustomDropdown from '../components/CustomDropdown';
 import '../App.css';
 import { API_BASE_URL } from '../config';
 
 function Dashboard() {
+  const [loadingAuth, setLoadingAuth] = useState(true);
   const [loggedIn, setLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
   const [topArtists, setTopArtists] = useState([]);
@@ -20,12 +23,9 @@ function Dashboard() {
   const [genreDistributionData, setGenreDistributionData] = useState([]);
   const [isArtistsOpen, setIsArtistsOpen] = useState(false);
   const [isTracksOpen, setIsTracksOpen] = useState(false);
-  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isShareStoryModalOpen, setIsShareStoryModalOpen] = useState(false);
 
-  // const API_BASE_URL = 'https://rewrap.onrender.com';
-  // const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://rewrap.onrender.com';
-
-  const PIE_COLORS = ['#aeebd4', '#4fa8a8', '#3a6363', '#78bfbf', '#759c98', '#16524b'];
+  const PIE_COLORS = ['#1DB954', '#00F2FE', '#7928CA', '#FFB800', '#FF007F'];
 
   const calculateTotalTrackDuration = (tracks) => {
     const totalMs = tracks.reduce((sum, track) => sum + track.duration_ms, 0);
@@ -66,9 +66,9 @@ function Dashboard() {
     });
 
     setTrackDurationData([
-      { name: 'Short (<2.5 min)', count: short },
-      { name: 'Medium (2.5-4 min)', count: medium },
-      { name: 'Long (>4 min)', count: long },
+      { name: 'Quick Bites (<2.5m)', count: short },
+      { name: 'Sweet Spot (2.5-4m)', count: medium },
+      { name: 'Deep Jams (>4m)', count: long },
     ]);
   };
 
@@ -80,12 +80,9 @@ function Dashboard() {
         credentials: 'include',
       });
       if (artistsRes.ok) {
-        // const artistsData = await artistsRes.json();
-        // setTopArtists(artistsData.items);
         const artistsData = await artistsRes.json();
         setTopArtists(artistsData.artists || []);
         setGenreDistributionData(artistsData.genre_distribution || []);
-
       } else {
         console.error('Failed to fetch top artists:', artistsRes.status);
         setTopArtists([]);
@@ -117,65 +114,49 @@ function Dashboard() {
     }
   };
 
-  const checkAuthStatus = async () => {
+  const checkAuth = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/me`, {
-        credentials: 'include',
-      });
+      const res = await fetch(`${API_BASE_URL}/me`, { credentials: 'include' });
       if (res.ok) {
-        const userData = await res.json();
+        const data = await res.json();
+        setUser(data);
         setLoggedIn(true);
-        setUser(userData);
-        fetchTopData(timeRange);
       } else {
         setLoggedIn(false);
-        setUser(null);
-        setTopArtists([]);
-        setTopTracks([]);
-        setTotalTopTracksDuration(0);
       }
     } catch (err) {
-      console.error('Error checking login status:', err);
+      console.error('Error checking auth:', err);
       setLoggedIn(false);
-      setUser(null);
-      setTopArtists([]);
-      setTopTracks([]);
-      setTotalTopTracksDuration(0);
+    } finally {
+      setLoadingAuth(false);
     }
   };
 
   useEffect(() => {
-    checkAuthStatus();
+    checkAuth();
   }, []);
 
-  // Close profile menu when clicking outside
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (!e.target.closest('.profile-button-container')) {
-        setIsProfileMenuOpen(false);
-      }
-    };
-    if (isProfileMenuOpen) {
-      document.addEventListener('click', handleClickOutside);
-      return () => document.removeEventListener('click', handleClickOutside);
-    }
-  }, [isProfileMenuOpen]);
-
-  useEffect(() => {
-    if (loggedIn) {
+    if (loggedIn && user) {
       fetchTopData(timeRange);
     }
-  }, [timeRange, loggedIn]);
+  }, [loggedIn, user, timeRange]);
 
   const handleLogin = () => {
     window.location.href = `${API_BASE_URL}/login`;
   };
 
   const handleLogout = async () => {
-    await fetch(`${API_BASE_URL}/logout`, {
-      method: 'POST',
-      credentials: 'include',
-    });
+    try {
+      await fetch(`${API_BASE_URL}/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch (err) {
+      console.error('Error logging out:', err);
+    }
+    setLoggedIn(false);
+    setUser(null);
     window.location.href = '/';
   };
 
@@ -250,11 +231,16 @@ function Dashboard() {
     }
   };
 
-  const getUserInitial = () => {
-    if (!user) return '';
-    const displayName = user.display_name || user.id || '';
-    return displayName[0].toUpperCase();
-  };
+  if (loadingAuth) {
+    return (
+      <div className="dashboard-wrapper">
+        <div className="dashboard-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+          <div className="spinner"></div>
+          <p style={{ color: 'var(--text-secondary)', marginTop: '1rem', fontSize: '0.9rem' }}>Verifying Spotify session...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard-wrapper">
@@ -268,73 +254,45 @@ function Dashboard() {
           </div>
         ) : (
           <>
-            <header className="dashboard-header">
-              <h1>Spotify Re<span style={{ color: 'var(--primary)' }}>Wrap</span></h1>
-              <div className="profile-button-container">
-                <button
-                  className="profile-button"
-                  onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                  title={user?.display_name || user?.id}
-                >
-                  {user?.images?.[0]?.url ? (
-                    <img src={user.images[0].url} alt="profile" className="profile-avatar" />
-                  ) : (
-                    <div className="profile-avatar-initial">
-                      {getUserInitial()}
-                    </div>
-                  )}
-                </button>
-
-                {isProfileMenuOpen && (
-                  <div className="profile-menu">
-                    <div className="profile-menu-item profile-user-info">
-                      {user?.images?.[0]?.url && (
-                        <img src={user.images[0].url} alt="profile" className="menu-avatar" />
-                      )}
-                      {!user?.images?.[0]?.url && (
-                        <div className="menu-avatar-initial">
-                          {getUserInitial()}
-                        </div>
-                      )}
-                      <span className="profile-user-name">
-                        {user?.display_name || user?.id}
-                      </span>
-                    </div>
-                    <div className="profile-menu-divider"></div>
-                    <button
-                      className="profile-menu-item logout-menu-item"
-                      onClick={handleLogout}
-                    >
-                      Sign out
-                    </button>
-                  </div>
-                )}
-              </div>
-            </header>
+            <Navbar user={user} onLogout={handleLogout} />
 
             <div className="controls-bar">
               <div className="select-container">
                 <label htmlFor="timeRangeSelect">Time Range</label>
-                <select id="timeRangeSelect" value={timeRange} onChange={handleTimeRangeChange}>
-                  <option value="short_term">Last 4 Weeks</option>
-                  <option value="medium_term">Last 6 Months</option>
-                  <option value="long_term">All Time</option>
-                </select>
+                <CustomDropdown
+                  options={[
+                    { value: 'short_term', label: 'Last 4 Weeks' },
+                    { value: 'medium_term', label: 'Last 6 Months' },
+                    { value: 'long_term', label: 'All Time' },
+                  ]}
+                  value={timeRange}
+                  onChange={(val) => handleTimeRangeChange({ target: { value: val } })}
+                />
               </div>
 
-              {topTracks.length > 0 && (
-                <button onClick={handleCreatePlaylistClick} className="create-playlist-button">
-                  Create Playlist
+              <div className="controls-actions">
+                {topTracks.length > 0 && (
+                  <button onClick={handleCreatePlaylistClick} className="create-playlist-button">
+                    Create Playlist
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsShareStoryModalOpen(true)}
+                  className="share-story-button"
+                >
+                  Export Story Card
                 </button>
-              )}
+              </div>
             </div>
+
 
             <section className="dashboard-section">
               <h3
                 className="section-title section-header-toggle"
                 onClick={() => setIsArtistsOpen(!isArtistsOpen)}
               >
-                Artists You Can't Stop Playing 
+                Artists You Can't Stop Playing
                 <svg className={`toggle-icon ${isArtistsOpen ? 'open' : ''}`} width="24" height="24" viewBox="0 0 24 24">
                   <path d="M7 10l5 5 5-5z" />
                 </svg>
@@ -408,40 +366,130 @@ function Dashboard() {
             </section>
 
             <section className="dashboard-section">
-              <h3 className="section-title"> What You've Been Up To</h3>
+              <h3 className="section-title">What You've Been Up To</h3>
+
+              {/* KPI Metric Summary Grid */}
+              {(topTracks.length > 0 || topArtists.length > 0) && (
+                <div className="kpi-grid">
+                  {/* Total Listening Time */}
+                  <div className="kpi-card">
+                    <div className="kpi-icon">⏱️</div>
+                    <div className="kpi-details">
+                      <span className="kpi-label">TOTAL TIME</span>
+                      <span className="kpi-value">
+                        {Math.floor(totalTopTracksDuration / 3600000)}h {Math.floor((totalTopTracksDuration % 3600000) / 60000)}m
+                      </span>
+                      <span className="kpi-subtext">from top {topTracks.length} tracks</span>
+                    </div>
+                  </div>
+
+                  {/* Top Artist */}
+                  {topArtists.length > 0 && (
+                    <div className="kpi-card">
+                      {topArtists[0].images?.[0]?.url ? (
+                        <img src={topArtists[0].images[0].url} alt={topArtists[0].name} className="kpi-avatar" />
+                      ) : (
+                        <div className="kpi-icon">👑</div>
+                      )}
+                      <div className="kpi-details">
+                        <span className="kpi-label">TOP ARTIST</span>
+                        <span className="kpi-value" title={topArtists[0].name}>{topArtists[0].name}</span>
+                        <span className="kpi-subtext">#1 Most Played</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Top Track */}
+                  {topTracks.length > 0 && (
+                    <div className="kpi-card">
+                      {topTracks[0].album?.images?.[0]?.url ? (
+                        <img src={topTracks[0].album.images[0].url} alt={topTracks[0].name} className="kpi-avatar rounded-sq" />
+                      ) : (
+                        <div className="kpi-icon">🎵</div>
+                      )}
+                      <div className="kpi-details">
+                        <span className="kpi-label">TOP TRACK</span>
+                        <span className="kpi-value" title={topTracks[0].name}>{topTracks[0].name}</span>
+                        <span className="kpi-subtext">{topTracks[0].artists?.[0]?.name}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Top Genre */}
+                  {genreDistributionData.length > 0 && (
+                    <div className="kpi-card">
+                      <div className="kpi-icon">⚡</div>
+                      <div className="kpi-details">
+                        <span className="kpi-label">TOP GENRE</span>
+                        <span className="kpi-value text-capitalize" title={genreDistributionData[0].genre}>
+                          {genreDistributionData[0].genre}
+                        </span>
+                        <span className="kpi-subtext">{genreDistributionData[0].count} artist matches</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Enhanced Visual Charts Grid */}
               {trackDurationData.length > 0 || genreDistributionData.length > 0 ? (
                 <div className="charts-layout">
+                  {/* Chart 1: Artist Repeat Bar Chart */}
                   {artistsByTrackCountData.length > 0 && (
                     <div className="chart-card">
-                      <h4 className="chart-title">Who's Been on Repeat</h4>
+                      <div className="chart-header">
+                        <h4 className="chart-title">Who's Been on Repeat</h4>
+                        <span className="chart-badge">Top Artists</span>
+                      </div>
                       <div className="recharts-responsive-container">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={artistsByTrackCountData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                            <XAxis dataKey="name" tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} tickLine={false} axisLine={false} interval={0} angle={-30} textAnchor="end" />
-                            <YAxis tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} tickLine={false} axisLine={false} />
-                            <Tooltip cursor={{ fill: 'var(--card-hover)' }} />
-                            <Bar dataKey="trackCount" fill="#1DB954" radius={[6, 6, 0, 0]} />
+                        <ResponsiveContainer width="100%" height={280}>
+                          <BarChart data={artistsByTrackCountData} margin={{ top: 10, right: 10, left: -20, bottom: 35 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.06)" />
+                            <XAxis
+                              dataKey="name"
+                              tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
+                              tickLine={false}
+                              axisLine={false}
+                              interval={0}
+                              angle={-35}
+                              textAnchor="end"
+                            />
+                            <YAxis tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} tickLine={false} axisLine={false} />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: '#18181b',
+                                border: '1px solid rgba(255,255,255,0.12)',
+                                borderRadius: '8px',
+                                color: '#fff',
+                                boxShadow: '0 8px 20px rgba(0,0,0,0.6)'
+                              }}
+                              itemStyle={{ color: '#1DB954', fontWeight: 'bold' }}
+                            />
+                            <Bar dataKey="trackCount" fill="#1DB954" radius={[6, 6, 0, 0]} name="Tracks Count" />
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
                     </div>
                   )}
 
+                  {/* Chart 2: Genre Donut Spectrum */}
                   {genreDistributionData.length > 0 && (
                     <div className="chart-card">
-                      <h4 className="chart-title">Genres You've Been Into</h4>
+                      <div className="chart-header">
+                        <h4 className="chart-title">Genres You've Been Into</h4>
+                        <span className="chart-badge">Top 5 Genres</span>
+                      </div>
                       <div className="recharts-responsive-container">
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height={280}>
                           <PieChart>
                             <Pie
                               data={genreDistributionData.slice(0, 5)}
                               dataKey="count"
                               nameKey="genre"
-                              cx="50%"  
+                              cx="50%"
                               cy="50%"
-                              outerRadius="70%"
-                              innerRadius="45%"
+                              outerRadius="75%"
+                              innerRadius="48%"
                               stroke="var(--card-bg)"
                               strokeWidth={3}
                               paddingAngle={4}
@@ -452,12 +500,49 @@ function Dashboard() {
                               ))}
                             </Pie>
                             <Tooltip
-                              contentStyle={{ backgroundColor: 'var(--card-bg)', border: 'none', color: 'var(--text-secondary)' }}
-                              itemStyle={{ color: 'var(--text-secondary)' }}
-                              labelStyle={{ color: 'var(--text-secondary)' }}
+                              contentStyle={{
+                                backgroundColor: '#18181b',
+                                border: '1px solid rgba(255,255,255,0.12)',
+                                borderRadius: '8px',
+                                color: '#fff',
+                                boxShadow: '0 8px 20px rgba(0,0,0,0.6)'
+                              }}
+                              itemStyle={{ color: '#00F2FE', fontWeight: 'bold' }}
                             />
-                            <Legend wrapperStyle={{ fontSize: 13, paddingTop: 20, color: 'var(--text-secondary)' }} />
+                            <Legend
+                              wrapperStyle={{ fontSize: 12, paddingTop: 15, color: 'var(--text-secondary)' }}
+                              formatter={(value) => <span style={{ color: 'var(--text-secondary)', textTransform: 'capitalize' }}>{value}</span>}
+                            />
                           </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Chart 3: Track Duration Distribution */}
+                  {trackDurationData.length > 0 && (
+                    <div className="chart-card chart-card-full">
+                      <div className="chart-header">
+                        <h4 className="chart-title">Song Pace & Duration Breakdown</h4>
+                        <span className="chart-badge">Track Lengths</span>
+                      </div>
+                      <div className="recharts-responsive-container">
+                        <ResponsiveContainer width="100%" height={240}>
+                          <BarChart data={trackDurationData} layout="vertical" margin={{ top: 10, right: 20, left: 40, bottom: 10 }}>
+                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(255,255,255,0.06)" />
+                            <XAxis type="number" tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} tickLine={false} axisLine={false} />
+                            <YAxis dataKey="name" type="category" tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} tickLine={false} axisLine={false} width={130} />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: '#18181b',
+                                border: '1px solid rgba(255,255,255,0.12)',
+                                borderRadius: '8px',
+                                color: '#fff'
+                              }}
+                              itemStyle={{ color: '#1DB954', fontWeight: 'bold' }}
+                            />
+                            <Bar dataKey="count" fill="#00F2FE" radius={[0, 6, 6, 0]} name="Tracks" />
+                          </BarChart>
                         </ResponsiveContainer>
                       </div>
                     </div>
@@ -484,14 +569,24 @@ function Dashboard() {
           onCancel={handleNotificationCancel}
         />
 
+        <ShareStoryModal
+          isOpen={isShareStoryModalOpen}
+          onClose={() => setIsShareStoryModalOpen(false)}
+          user={user}
+          topArtists={topArtists}
+          topTracks={topTracks}
+          genreDistribution={genreDistributionData}
+          timeRange={timeRange}
+        />
+
         <footer className="footer">
-        <p>Built by Affan</p>
-        <div className="footer-links">
-          <a href="https://www.linkedin.com/in/affan-abid-91270b267/" target="_blank" rel="noopener noreferrer" className="footer-link">LinkedIn</a>
-          <a href="https://github.com/affanabid" target="_blank" rel="noopener noreferrer" className="footer-link">GitHub</a>
-          <a href="mailto:affanabid31@gmail.com" className="footer-link">Email</a>
-        </div>
-      </footer>
+          <p>Built by Affan</p>
+          <div className="footer-links">
+            <a href="https://www.linkedin.com/in/affan-abid-91270b267/" target="_blank" rel="noopener noreferrer" className="footer-link">LinkedIn</a>
+            <a href="https://github.com/affanabid" target="_blank" rel="noopener noreferrer" className="footer-link">GitHub</a>
+            <a href="mailto:affanabid31@gmail.com" className="footer-link">Email</a>
+          </div>
+        </footer>
       </div>
     </div>
   );

@@ -1,0 +1,218 @@
+/* ShareStoryModal.css */
+.modal-content.share-story-modal {
+  background: #111115;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  padding: 24px;
+  max-width: 520px;
+  width: 92%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85);
+  color: #ffffff;
+}
+
+.share-modal-header {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.share-modal-header h2 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #1db954;
+  margin-bottom: 4px;
+}
+
+.share-modal-header p {
+  font-size: 0.88rem;
+  color: #a1a1aa;
+}
+
+/* Card Customizer Panel */
+.card-customizer-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 10px 14px;
+  border-radius: 14px;
+  margin-bottom: 12px;
+}
+
+.customizer-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.customizer-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #a1a1aa;
+}
+
+.pill-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 3px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.customizer-pill {
+  background: transparent;
+  color: #a1a1aa;
+  border: none;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.customizer-pill:hover {
+  color: #ffffff;
+}
+
+.customizer-pill.active {
+  background: #1db954;
+  color: #000000;
+}
+
+.customizer-toggle-btn {
+  background: rgba(255, 255, 255, 0.08);
+  color: #a1a1aa;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.customizer-toggle-btn.active {
+  background: rgba(29, 185, 84, 0.15);
+  color: #1db954;
+  border-color: rgba(29, 185, 84, 0.4);
+}
+
+
+.story-card-preview-container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  margin: 12px 0;
+  max-height: 580px;
+  overflow-y: auto;
+  border-radius: 16px;
+  padding: 16px 12px;
+  background: rgba(0, 0, 0, 0.4);
+  box-sizing: border-box;
+}
+
+.story-card-preview-container .wrapped-story-card-wrapper {
+  padding: 4px 0;
+  display: flex;
+  justify-content: center;
+}
+
+/* Desktop Preview Scaling to fit full card in viewport */
+.wrapped-story-card {
+  transform: scale(0.76);
+  transform-origin: top center;
+  margin-bottom: -175px;
+}
+
+.share-modal-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.download-story-btn {
+  background: #1db954;
+  color: #000000;
+  border: none;
+  padding: 14px 28px;
+  border-radius: 30px;
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 20px rgba(29, 185, 84, 0.4);
+}
+
+.download-story-btn:hover:not(:disabled) {
+  background: #1fdf64;
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 6px 24px rgba(29, 185, 84, 0.6);
+}
+
+.download-story-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.share-error {
+  background: rgba(229, 62, 62, 0.15);
+  border: 1px solid rgba(229, 62, 62, 0.4);
+  color: #fc8181;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  margin-bottom: 12px;
+}
+
+/* Mobile Responsive Adjustments */
+@media (max-width: 640px) {
+  .modal-content.share-story-modal {
+    padding: 18px 14px;
+    width: 94%;
+    max-height: 92vh;
+    border-radius: 16px;
+  }
+
+  .share-modal-header h2 {
+    font-size: 1.25rem;
+  }
+
+  .share-modal-header p {
+    font-size: 0.8rem;
+  }
+
+  .story-card-preview-container {
+    max-height: 480px;
+    padding: 8px 4px;
+    overflow-x: hidden;
+  }
+
+  .wrapped-story-card {
+    transform: scale(0.72);
+    transform-origin: top center;
+    margin-bottom: -200px;
+  }
+
+  .download-story-btn {
+    width: 100%;
+    padding: 12px 18px;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 400px) {
+  .wrapped-story-card {
+    transform: scale(0.64);
+    margin-bottom: -250px;
+  }
+}
+
+

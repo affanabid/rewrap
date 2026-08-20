@@ -1,0 +1,112 @@
+/* CustomDropdown.css */
+.custom-dropdown-container {
+  position: relative;
+  display: inline-block;
+  min-width: 170px;
+  flex: 1;
+}
+
+.custom-dropdown-trigger {
+  height: 38px;
+  width: 100%;
+  padding: 0 0.85rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  background-color: var(--surface-raised, #242428);
+  color: var(--text, #ffffff);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: var(--radius-xs, 8px);
+  cursor: pointer;
+  outline: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.custom-dropdown-trigger:hover,
+.custom-dropdown-trigger.is-open {
+  border-color: #1DB954;
+  box-shadow: 0 0 0 3px rgba(29, 185, 84, 0.15);
+}
+
+.dropdown-chevron-svg {
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.custom-dropdown-trigger.is-open .dropdown-chevron-svg {
+  transform: rotate(180deg);
+}
+
+.dropdown-selected-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.custom-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  min-width: 100%;
+  background: #18181c;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7);
+  padding: 4px;
+  z-index: 99999;
+  animation: dropdownIn 0.15s ease-out;
+}
+
+@keyframes dropdownIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.custom-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-size: 0.83rem;
+  font-weight: 600;
+  color: #a1a1aa;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.custom-dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.custom-dropdown-item.selected {
+  background: rgba(29, 185, 84, 0.14);
+  color: #1DB954;
+  font-weight: 700;
+}
+
+.item-checkmark {
+  font-size: 0.85rem;
+  color: #1DB954;
+  font-weight: bold;
+}
+
+@media (max-width: 640px) {
+  .custom-dropdown-trigger {
+    height: 40px;
+    font-size: 0.82rem;
+  }
+}

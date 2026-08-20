@@ -2,3 +2,7 @@ venv/
 __pycache__/
 *.pyc
 .env
+automation/.spotify_session/
+backend/flask_session/
+*.html
+.DS_Store
