@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="glowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1ed760" />
+      <stop offset="100%" stop-color="#00f2fe" />
+    </linearGradient>
+  </defs>
+
+  <!-- Outer Dark Disc Background -->
+  <circle cx="256" cy="256" r="256" fill="#0a0a0c" />
+  
+  <!-- Outer Neon Glow Border -->
+  <circle cx="256" cy="256" r="236" fill="none" stroke="url(#glowGrad)" stroke-width="14" opacity="0.9" />
+
+  <!-- Inner Dark Surface -->
+  <circle cx="256" cy="256" r="200" fill="#141417" stroke="rgba(255,255,255,0.08)" stroke-width="4" />
+  
+  <!-- Custom Equalizer Sound Bars -->
+  <rect x="136" y="210" width="26" height="92" rx="13" fill="url(#glowGrad)" />
+  <rect x="186" y="150" width="26" height="212" rx="13" fill="url(#glowGrad)" />
+  <rect x="236" y="100" width="26" height="312" rx="13" fill="url(#glowGrad)" />
+  <rect x="286" y="170" width="26" height="172" rx="13" fill="url(#glowGrad)" />
+  <rect x="336" y="230" width="26" height="52" rx="13" fill="url(#glowGrad)" />
+</svg>

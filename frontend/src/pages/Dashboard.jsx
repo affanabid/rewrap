@@ -432,14 +432,13 @@ function Dashboard() {
               )}
 
               {/* Enhanced Visual Charts Grid */}
-              {trackDurationData.length > 0 || genreDistributionData.length > 0 ? (
+              {(artistsByTrackCountData.length > 0 || genreDistributionData.length > 0) ? (
                 <div className="charts-layout">
                   {/* Chart 1: Artist Repeat Bar Chart */}
                   {artistsByTrackCountData.length > 0 && (
                     <div className="chart-card">
                       <div className="chart-header">
                         <h4 className="chart-title">Who's Been on Repeat</h4>
-                        <span className="chart-badge">Top Artists</span>
                       </div>
                       <div className="recharts-responsive-container">
                         <ResponsiveContainer width="100%" height={280}>
@@ -477,7 +476,6 @@ function Dashboard() {
                     <div className="chart-card">
                       <div className="chart-header">
                         <h4 className="chart-title">Genres You've Been Into</h4>
-                        <span className="chart-badge">Top 5 Genres</span>
                       </div>
                       <div className="recharts-responsive-container">
                         <ResponsiveContainer width="100%" height={280}>
@@ -514,35 +512,6 @@ function Dashboard() {
                               formatter={(value) => <span style={{ color: 'var(--text-secondary)', textTransform: 'capitalize' }}>{value}</span>}
                             />
                           </PieChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Chart 3: Track Duration Distribution */}
-                  {trackDurationData.length > 0 && (
-                    <div className="chart-card chart-card-full">
-                      <div className="chart-header">
-                        <h4 className="chart-title">Song Pace & Duration Breakdown</h4>
-                        <span className="chart-badge">Track Lengths</span>
-                      </div>
-                      <div className="recharts-responsive-container">
-                        <ResponsiveContainer width="100%" height={240}>
-                          <BarChart data={trackDurationData} layout="vertical" margin={{ top: 10, right: 20, left: 40, bottom: 10 }}>
-                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(255,255,255,0.06)" />
-                            <XAxis type="number" tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} tickLine={false} axisLine={false} />
-                            <YAxis dataKey="name" type="category" tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} tickLine={false} axisLine={false} width={130} />
-                            <Tooltip
-                              contentStyle={{
-                                backgroundColor: '#18181b',
-                                border: '1px solid rgba(255,255,255,0.12)',
-                                borderRadius: '8px',
-                                color: '#fff'
-                              }}
-                              itemStyle={{ color: '#1DB954', fontWeight: 'bold' }}
-                            />
-                            <Bar dataKey="count" fill="#00F2FE" radius={[0, 6, 6, 0]} name="Tracks" />
-                          </BarChart>
                         </ResponsiveContainer>
                       </div>
                     </div>

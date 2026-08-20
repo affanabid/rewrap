@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import './PlaylistModal.css'; // Import the CSS for styling
+import ReactDOM from 'react-dom';
+import './PlaylistModal.css';
 
 const PlaylistModal = ({ isOpen, onClose, onSubmit, defaultPlaylistName }) => {
-  // const [playlistName, setPlaylistName] = useState(defaultPlaylistName);
   const [playlistName, setPlaylistName] = useState(defaultPlaylistName);
 
   useEffect(() => {
@@ -19,9 +19,9 @@ const PlaylistModal = ({ isOpen, onClose, onSubmit, defaultPlaylistName }) => {
     }
   };
 
-  return (
-    <div className="modal-overlay">
-      <div className="modal-content">
+  return ReactDOM.createPortal(
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <h2>Create Playlist</h2>
         <p className="modal-sub">Name your new Spotify playlist</p>
         <input
@@ -37,8 +37,9 @@ const PlaylistModal = ({ isOpen, onClose, onSubmit, defaultPlaylistName }) => {
           <button onClick={onClose} className="modal-button secondary">Cancel</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
-export default PlaylistModal; 
+export default PlaylistModal;

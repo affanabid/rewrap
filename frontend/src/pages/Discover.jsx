@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import Navbar from '../components/Navbar';
 import PlaylistModal from '../components/PlaylistModal';
 import ConfirmationNotification from '../components/ConfirmationNotification';
@@ -199,25 +200,27 @@ function Discover() {
               <div className="discover-controls">
                 <div className="select-container">
                   <label htmlFor="timeRangeSelect">Base Sound Vibe:</label>
-                  <CustomDropdown
-                    options={[
-                      { value: 'short_term', label: 'Last 4 Weeks Vibe' },
-                      { value: 'medium_term', label: 'Last 6 Months Vibe' },
-                      { value: 'long_term', label: 'All Time Vibe' },
-                    ]}
-                    value={timeRange}
-                    onChange={(val) => setTimeRange(val)}
-                  />
+                  <div className="controls-row">
+                    <CustomDropdown
+                      options={[
+                        { value: 'short_term', label: 'Last 4 Weeks Vibe' },
+                        { value: 'medium_term', label: 'Last 6 Months Vibe' },
+                        { value: 'long_term', label: 'All Time Vibe' },
+                      ]}
+                      value={timeRange}
+                      onChange={(val) => setTimeRange(val)}
+                    />
 
-                  {recommendations.length > 0 && (
-                    <button
-                      onClick={handleCreatePlaylistClick}
-                      className="add-playlist-icon-btn"
-                      title="Save recommendations to Spotify Playlist"
-                    >
-                      ➕
-                    </button>
-                  )}
+                    {recommendations.length > 0 && (
+                      <button
+                        onClick={handleCreatePlaylistClick}
+                        className="add-playlist-icon-btn"
+                        title="Save recommendations to Spotify Playlist"
+                      >
+                        ➕
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -278,7 +281,11 @@ function Discover() {
                             rel="noopener noreferrer"
                             className="spotify-link-btn"
                           >
-                            Listen ↗
+                            Listen
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: '4px', display: 'inline-block', verticalAlign: 'middle' }}>
+                              <line x1="7" y1="17" x2="17" y2="7"></line>
+                              <polyline points="7 7 17 7 17 17"></polyline>
+                            </svg>
                           </a>
                         </div>
                       </div>
@@ -314,7 +321,7 @@ function Discover() {
         />
 
         {/* Why Smart Discoveries Info Modal */}
-        {isInfoOpen && (
+        {isInfoOpen && ReactDOM.createPortal(
           <div className="modal-overlay" onClick={() => setIsInfoOpen(false)}>
             <div className="modal-content info-modal-content" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
@@ -343,7 +350,8 @@ function Discover() {
                 </button>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </div>
     </div>
