@@ -95,10 +95,13 @@ SPOTIFY_SP_DC=your_spotify_sp_dc_cookie
 SPOTIFY_DEV_EMAIL=your_developer_email
 SPOTIFY_DEV_PASSWORD=your_developer_password
 
-# Optional: Admin Email Notifications
+# Optional: Admin Email Notifications (HTTP API for Cloud Platforms like Render)
+RESEND_API_KEY=re_123456789
+NOTIFY_RECIPIENT_EMAIL=your_admin_email@gmail.com
+
+# Optional: Local Dev SMTP Notifications
 NOTIFY_SENDER_EMAIL=your_gmail_address@gmail.com
 NOTIFY_SENDER_PASSWORD=your_gmail_app_password
-NOTIFY_RECIPIENT_EMAIL=your_admin_email@gmail.com
 ```
 
 ### Frontend Configuration (`frontend/.env`)

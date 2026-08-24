@@ -4,22 +4,22 @@ notifier.py
 Sends email notifications whenever a user is added to (or removed from)
 the Rewrap Spotify app.
 
-Uses Python's built-in smtplib with Gmail SMTP — no extra dependencies.
+Supports HTTP-based Email APIs (Resend, Brevo, SendGrid) over Port 443 HTTPS
+(works on cloud platforms like Render, Vercel, Railway) with smtplib fallback for local dev.
 
-Environment variables (add to your .env):
-    NOTIFY_SENDER_EMAIL     — Gmail address sending the notification
-    NOTIFY_SENDER_PASSWORD  — Gmail App Password (NOT your Gmail login password)
-                              Generate one at: https://myaccount.google.com/apppasswords
-    NOTIFY_RECIPIENT_EMAIL  — Address that receives the notifications
-                              (can be the same as sender)
-
-Integration (two lines in spotify_user_manager.py):
-    from notifier import notify_user_added
-    # call after successful add:
-    notify_user_added(name=name, email=email, removed_name=removed_name, removed_email=removed_user)
+Environment variables:
+    RESEND_API_KEY          — API key from Resend.com (Recommended for Render)
+    BREVO_API_KEY           — API key from Brevo.com (Sendinblue)
+    SENDGRID_API_KEY        — API key from SendGrid.com
+    NOTIFY_RECIPIENT_EMAIL  — Email address that receives admin notifications
+    NOTIFY_SENDER_EMAIL     — Optional custom sender email address
+    NOTIFY_SENDER_PASSWORD  — Gmail App Password (for local smtplib fallback)
 """
 
 import os
+import json
+import urllib.request
+import urllib.error
 import smtplib
 import logging
 from datetime import datetime
@@ -48,33 +48,144 @@ def notify_user_added(
 ) -> bool:
     """
     Send an email notification about a newly added (and optionally removed) user.
-
-    Returns True if sent successfully, False otherwise.
-    Never raises — all errors are logged.
+    Prefers HTTP-based APIs (Resend / Brevo / SendGrid) over Port 443,
+    falling back to smtplib for local dev.
     """
-    sender    = sender_email    or os.getenv("NOTIFY_SENDER_EMAIL")
-    password  = sender_password or os.getenv("NOTIFY_SENDER_PASSWORD")
-    recipient = recipient_email or os.getenv("NOTIFY_RECIPIENT_EMAIL")
+    recipient = recipient_email or os.getenv("NOTIFY_RECIPIENT_EMAIL") or os.getenv("NOTIFY_SENDER_EMAIL")
 
-    if not all([sender, password, recipient]):
-        log.warning(
-            "Email notification skipped — missing credentials. "
-            "Set NOTIFY_SENDER_EMAIL, NOTIFY_SENDER_PASSWORD, NOTIFY_RECIPIENT_EMAIL in .env"
-        )
+    if not recipient:
+        log.warning("Email notification skipped — no NOTIFY_RECIPIENT_EMAIL set in environment.")
         return False
 
-    try:
-        subject, body_html, body_text = _build_message(
-            name=name,
-            email=email,
-            removed_name=removed_name,
-            removed_email=removed_email,
-        )
+    subject, body_html, body_text = _build_message(
+        name=name,
+        email=email,
+        removed_name=removed_name,
+        removed_email=removed_email,
+    )
 
+    # 1. Try Resend HTTP API (Port 443 HTTPS)
+    resend_key = os.getenv("RESEND_API_KEY")
+    if resend_key:
+        return _send_via_resend(resend_key, recipient, subject, body_html, body_text)
+
+    # 2. Try Brevo HTTP API (Port 443 HTTPS)
+    brevo_key = os.getenv("BREVO_API_KEY")
+    if brevo_key:
+        return _send_via_brevo(brevo_key, recipient, subject, body_html, body_text)
+
+    # 3. Try SendGrid HTTP API (Port 443 HTTPS)
+    sendgrid_key = os.getenv("SENDGRID_API_KEY")
+    if sendgrid_key:
+        return _send_via_sendgrid(sendgrid_key, recipient, subject, body_html, body_text)
+
+    # 4. Fallback to standard SMTP (Local Dev / Unblocked environments)
+    sender = sender_email or os.getenv("NOTIFY_SENDER_EMAIL")
+    password = sender_password or os.getenv("NOTIFY_SENDER_PASSWORD")
+
+    if sender and password:
+        return _send_via_smtp(sender, password, recipient, subject, body_html, body_text)
+
+    log.warning(
+        "Email notification skipped — no HTTP API keys (RESEND_API_KEY/BREVO_API_KEY/SENDGRID_API_KEY) "
+        "or SMTP credentials found."
+    )
+    return False
+
+
+def _send_via_resend(api_key: str, recipient: str, subject: str, body_html: str, body_text: str) -> bool:
+    """Send email via Resend HTTP API over Port 443 HTTPS."""
+    url = "https://api.resend.com/emails"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "User-Agent": "Rewrap-Notifier/1.0",
+    }
+    from_email = os.getenv("NOTIFY_SENDER_EMAIL") or "onboarding@resend.dev"
+    payload = {
+        "from": f"Rewrap Notifier <{from_email}>",
+        "to": [recipient],
+        "subject": subject,
+        "html": body_html,
+        "text": body_text,
+    }
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(url, data=data, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            if resp.status in (200, 201, 202):
+                log.info("Notification email sent via Resend HTTP API to %s", recipient)
+                return True
+    except Exception as e:
+        log.error("Failed to send email via Resend HTTP API: %s", e)
+    return False
+
+
+def _send_via_brevo(api_key: str, recipient: str, subject: str, body_html: str, body_text: str) -> bool:
+    """Send email via Brevo (Sendinblue) HTTP API over Port 443 HTTPS."""
+    url = "https://api.brevo.com/v3/smtp/email"
+    headers = {
+        "api-key": api_key,
+        "Content-Type": "application/json",
+        "User-Agent": "Rewrap-Notifier/1.0",
+    }
+    from_email = os.getenv("NOTIFY_SENDER_EMAIL") or "noreply@rewrap.app"
+    payload = {
+        "sender": {"name": "Rewrap Notifier", "email": from_email},
+        "to": [{"email": recipient}],
+        "subject": subject,
+        "htmlContent": body_html,
+        "textContent": body_text,
+    }
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(url, data=data, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            if resp.status in (200, 201, 202):
+                log.info("Notification email sent via Brevo HTTP API to %s", recipient)
+                return True
+    except Exception as e:
+        log.error("Failed to send email via Brevo HTTP API: %s", e)
+    return False
+
+
+def _send_via_sendgrid(api_key: str, recipient: str, subject: str, body_html: str, body_text: str) -> bool:
+    """Send email via SendGrid HTTP API over Port 443 HTTPS."""
+    url = "https://api.sendgrid.com/v3/mail/send"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "User-Agent": "Rewrap-Notifier/1.0",
+    }
+    from_email = os.getenv("NOTIFY_SENDER_EMAIL") or "noreply@rewrap.app"
+    payload = {
+        "personalizations": [{"to": [{"email": recipient}]}],
+        "from": {"email": from_email, "name": "Rewrap Notifier"},
+        "subject": subject,
+        "content": [
+            {"type": "text/plain", "value": body_text},
+            {"type": "text/html", "value": body_html},
+        ],
+    }
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(url, data=data, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            if resp.status in (200, 201, 202):
+                log.info("Notification email sent via SendGrid HTTP API to %s", recipient)
+                return True
+    except Exception as e:
+        log.error("Failed to send email via SendGrid HTTP API: %s", e)
+    return False
+
+
+def _send_via_smtp(sender: str, password: str, recipient: str, subject: str, body_html: str, body_text: str) -> bool:
+    """Send email via standard SMTP (for local dev environments)."""
+    try:
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
-        msg["From"]    = f"Rewrap Notifier <{sender}>"
-        msg["To"]      = recipient
+        msg["From"] = f"Rewrap Notifier <{sender}>"
+        msg["To"] = recipient
         msg.attach(MIMEText(body_text, "plain"))
         msg.attach(MIMEText(body_html, "html"))
 
@@ -84,18 +195,10 @@ def notify_user_added(
             server.login(sender, password)
             server.sendmail(sender, recipient, msg.as_string())
 
-        log.info("Notification email sent to %s", recipient)
+        log.info("Notification email sent via SMTP to %s", recipient)
         return True
-
-    except smtplib.SMTPAuthenticationError:
-        log.error(
-            "Gmail authentication failed. Make sure you're using an App Password, "
-            "not your Gmail login password. "
-            "Generate one at: https://myaccount.google.com/apppasswords"
-        )
-        return False
     except Exception as exc:
-        log.error("Failed to send notification email: %s", exc)
+        log.error("Failed to send email via SMTP: %s", exc)
         return False
 
 
