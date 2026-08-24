@@ -128,17 +128,37 @@ def add_spotify_user(
                     ]
                 )
             except Exception:
-                ctx = pw.chromium.launch_persistent_context(
-                    user_data_dir=session_dir,
-                    headless=headless,
-                    viewport={"width": 1280, "height": 900},
-                    user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
-                    args=[
-                        "--disable-blink-features=AutomationControlled",
-                        "--no-sandbox",
-                        "--disable-setuid-sandbox"
-                    ]
-                )
+                try:
+                    ctx = pw.chromium.launch_persistent_context(
+                        user_data_dir=session_dir,
+                        headless=headless,
+                        viewport={"width": 1280, "height": 900},
+                        user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+                        args=[
+                            "--disable-blink-features=AutomationControlled",
+                            "--no-sandbox",
+                            "--disable-setuid-sandbox"
+                        ]
+                    )
+                except Exception as b_err:
+                    if "Executable doesn't exist" in str(b_err) or "playwright install" in str(b_err):
+                        log.info("Chromium executable missing. Installing chromium binaries automatically...")
+                        import subprocess
+                        import sys
+                        subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=True)
+                        ctx = pw.chromium.launch_persistent_context(
+                            user_data_dir=session_dir,
+                            headless=headless,
+                            viewport={"width": 1280, "height": 900},
+                            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+                            args=[
+                                "--disable-blink-features=AutomationControlled",
+                                "--no-sandbox",
+                                "--disable-setuid-sandbox"
+                            ]
+                        )
+                    else:
+                        raise b_err
             page = ctx.pages[0] if ctx.pages else ctx.new_page()
             page.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
             page.set_default_timeout(TIMEOUT_MS)
