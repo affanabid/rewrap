@@ -6,6 +6,7 @@ import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 import os
 import time
+import threading
 from collections import Counter
 from flask_session import Session
 from spotipy.cache_handler import CacheHandler
@@ -306,12 +307,15 @@ def register_spotify_user():
         except Exception as e:
             app.logger.warning(f"Automation notice: {e}")
 
-    # Always notify admin via email
+    # Always notify admin via email in background thread so HTTP response returns immediately
     if notify_user_added:
-        try:
-            notify_user_added(name=name, email=email, removed_email=removed_user)
-        except Exception as n_err:
-            app.logger.warning(f"Failed to send notification email: {n_err}")
+        def send_email_async():
+            try:
+                notify_user_added(name=name, email=email, removed_email=removed_user)
+            except Exception as n_err:
+                app.logger.warning(f"Failed to send notification email: {n_err}")
+
+        threading.Thread(target=send_email_async, daemon=True).start()
 
     if automation_success:
         return jsonify({

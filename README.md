@@ -202,7 +202,7 @@ cd rewrap
    ```
 4. Set the start command:
    ```bash
-   gunicorn --bind 0.0.0.0:8080 app:app
+   gunicorn --timeout 120 --bind 0.0.0.0:10000 app:app
    ```
 
 ### Spotify Developer Dashboard Redirect URIs
