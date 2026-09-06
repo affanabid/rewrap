@@ -7,7 +7,13 @@ from spotipy.oauth2 import SpotifyOAuth
 import os
 import time
 import threading
+from datetime import timedelta
 from collections import Counter
+from flask import Flask, request, jsonify, session, redirect
+from flask_cors import CORS
+import spotipy
+from spotipy.oauth2 import SpotifyOAuth
+from spotipy.exceptions import SpotifyException
 from flask_session import Session
 from spotipy.cache_handler import CacheHandler
 from dotenv import load_dotenv
@@ -37,37 +43,36 @@ ENV = os.getenv("ENV", "dev")  # "dev" or "prod"
 
 if ENV == "prod":
     app.config.update(
-        SESSION_TYPE="filesystem",      # or "redis" if you prefer
-        # SESSION_REDIS=redis.from_url(os.getenv("REDIS_URL")),  # if using Redis
-        SESSION_PERMANENT=False,
+        SESSION_TYPE="filesystem",
+        SESSION_PERMANENT=True,
+        PERMANENT_SESSION_LIFETIME=timedelta(days=7),
         SESSION_COOKIE_NAME="rewrap_session",
         SESSION_COOKIE_SAMESITE="None",
         SESSION_COOKIE_SECURE=True,     # cookie only over HTTPS
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_PARTITIONED=True,
     )
 else:
     # local dev: do NOT force Secure cookies over http://localhost
     app.config.update(
         SESSION_TYPE="filesystem",
-        SESSION_PERMANENT=False,
+        SESSION_PERMANENT=True,
+        PERMANENT_SESSION_LIFETIME=timedelta(days=7),
         SESSION_COOKIE_NAME="rewrap_session",
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_SECURE=False,
+        SESSION_COOKIE_HTTPONLY=True,
     )
 
 Session(app)
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://127.0.0.1:5173")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://127.0.0.1:5173").rstrip("/")
 
-# CORS(app, origins=os.getenv("FRONTEND_URL", "https://rewrap-puce.vercel.app"), supports_credentials=True)
-# CORS(app, origins="https://rewrap-puce.vercel.app", supports_credentials=True)
-# CORS(app, origins="http://127.0.0.1:5173", supports_credentials=True)
 CORS(app, origins=[FRONTEND_URL, "https://rewrap-puce.vercel.app", "http://127.0.0.1:5173", "http://localhost:5173"], supports_credentials=True)
 
 # Configure environment variables before running
 SPOTIPY_CLIENT_ID = os.getenv("SPOTIPY_CLIENT_ID")
 SPOTIPY_CLIENT_SECRET = os.getenv("SPOTIPY_CLIENT_SECRET")
 SPOTIPY_REDIRECT_URI = os.getenv("SPOTIPY_REDIRECT_URI")
-# SPOTIPY_REDIRECT_URI='https://rewrap.onrender.com/callback'
-# SPOTIPY_REDIRECT_URI="http://127.0.0.1:5000/callback"
 
 scope = "user-top-read playlist-modify-public user-read-playback-state user-library-read"
 
@@ -96,15 +101,28 @@ def get_spotify_oauth():
 
 def get_spotify_token():
     token_info = session.get("token_info")
-    if not token_info:
+    if not isinstance(token_info, dict) or "expires_at" not in token_info:
         return None
 
     now = int(time.time())
     is_expired = token_info['expires_at'] - now < 60
     if is_expired:
-        sp_oauth = get_spotify_oauth()
-        token_info = sp_oauth.refresh_access_token(token_info['refresh_token'])
-        session["token_info"] = token_info  # stays per-user
+        refresh_token = token_info.get('refresh_token')
+        if not refresh_token:
+            session.pop("token_info", None)
+            return None
+        try:
+            sp_oauth = get_spotify_oauth()
+            refreshed_info = sp_oauth.refresh_access_token(refresh_token)
+            if refreshed_info and "access_token" in refreshed_info:
+                session["token_info"] = refreshed_info
+                return refreshed_info
+            session.pop("token_info", None)
+            return None
+        except Exception as e:
+            app.logger.warning(f"Error refreshing Spotify token: {e}")
+            session.pop("token_info", None)
+            return None
 
     return token_info
 
@@ -125,11 +143,25 @@ def login():
 
 @app.route("/callback")
 def callback():
-    sp_oauth = get_spotify_oauth()
+    error = request.args.get("error")
+    if error:
+        app.logger.warning(f"Spotify auth returned error: {error}")
+        return redirect(f"{FRONTEND_URL}/?error={error}")
+
     code = request.args.get("code")
-    token_info = sp_oauth.get_access_token(code)
-    session["token_info"] = token_info
-    return redirect(f"{FRONTEND_URL}/dashboard")
+    if not code:
+        return redirect(f"{FRONTEND_URL}/?error=missing_code")
+
+    try:
+        sp_oauth = get_spotify_oauth()
+        token_info = sp_oauth.get_access_token(code)
+        if not token_info or "access_token" not in token_info:
+            return redirect(f"{FRONTEND_URL}/?error=token_error")
+        session["token_info"] = token_info
+        return redirect(f"{FRONTEND_URL}/dashboard")
+    except Exception as e:
+        app.logger.error(f"Callback token exchange failed: {e}")
+        return redirect(f"{FRONTEND_URL}/?error=auth_failed")
 
 @app.route("/me")
 def me():
@@ -140,7 +172,14 @@ def me():
         sp = spotipy.Spotify(auth=token_info['access_token'])
         user_profile = sp.current_user()
         return jsonify(user_profile)
+    except SpotifyException as se:
+        app.logger.warning(f"Spotify API error in /me: {se}")
+        if se.http_status == 401:
+            session.pop("token_info", None)
+            return jsonify({"error": "Unauthorized"}), 401
+        return jsonify({"error": str(se)}), se.http_status or 500
     except Exception as e:
+        app.logger.error(f"Unexpected error in /me: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route("/top-tracks")
@@ -149,9 +188,19 @@ def top_tracks():
     if not token_info:
         return jsonify({"error": "Unauthorized"}), 401
     time_range = request.args.get('time_range', 'short_term') 
-    sp = spotipy.Spotify(auth=token_info['access_token'])
-    results = sp.current_user_top_tracks(limit=20, time_range=time_range)
-    return jsonify(results)
+    try:
+        sp = spotipy.Spotify(auth=token_info['access_token'])
+        results = sp.current_user_top_tracks(limit=20, time_range=time_range)
+        return jsonify(results)
+    except SpotifyException as se:
+        app.logger.warning(f"Spotify API error in /top-tracks: {se}")
+        if se.http_status == 401:
+            session.pop("token_info", None)
+            return jsonify({"error": "Unauthorized"}), 401
+        return jsonify({"error": str(se)}), se.http_status or 500
+    except Exception as e:
+        app.logger.error(f"Unexpected error in /top-tracks: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/top-artists")
 def top_artists():
@@ -159,20 +208,29 @@ def top_artists():
     if not token_info:
         return jsonify({"error": "Unauthorized"}), 401
     time_range = request.args.get('time_range', 'short_term') 
-    sp = spotipy.Spotify(auth=token_info['access_token'])
-    results = sp.current_user_top_artists(limit=10, time_range=time_range) 
-    # return jsonify(results)
+    try:
+        sp = spotipy.Spotify(auth=token_info['access_token'])
+        results = sp.current_user_top_artists(limit=10, time_range=time_range) 
 
-    genre_counter = Counter()
-    for artist in results['items']:
-        genre_counter.update(artist['genres'])
+        genre_counter = Counter()
+        for artist in results.get('items', []):
+            genre_counter.update(artist.get('genres', []))
 
-    genre_data = [{"genre": genre, "count": count} for genre, count in genre_counter.most_common()]
+        genre_data = [{"genre": genre, "count": count} for genre, count in genre_counter.most_common()]
 
-    return jsonify({
-        "artists": results['items'],
-        "genre_distribution": genre_data
-    })
+        return jsonify({
+            "artists": results.get('items', []),
+            "genre_distribution": genre_data
+        })
+    except SpotifyException as se:
+        app.logger.warning(f"Spotify API error in /top-artists: {se}")
+        if se.http_status == 401:
+            session.pop("token_info", None)
+            return jsonify({"error": "Unauthorized"}), 401
+        return jsonify({"error": str(se)}), se.http_status or 500
+    except Exception as e:
+        app.logger.error(f"Unexpected error in /top-artists: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/recommendations", methods=['GET'])
 def get_recommendations():
@@ -250,6 +308,12 @@ def get_recommendations():
 
         return jsonify({"items": recommended_tracks[:12]}), 200
 
+    except SpotifyException as se:
+        app.logger.warning(f"Spotify API error in /recommendations: {se}")
+        if se.http_status == 401:
+            session.pop("token_info", None)
+            return jsonify({"error": "Unauthorized"}), 401
+        return jsonify({"error": str(se)}), se.http_status or 500
     except Exception as e:
         app.logger.error(f"Error fetching recommendations: {e}")
         return jsonify({"error": str(e)}), 500
@@ -258,14 +322,13 @@ def get_recommendations():
 
 
 @app.route("/create-playlist", methods=['POST'])
-
 def create_playlist():
     token_info = get_spotify_token()
     if not token_info:
         return jsonify({"error": "Unauthorized"}), 401
 
     sp = spotipy.Spotify(auth=token_info['access_token'])
-    data = request.get_json()
+    data = request.get_json() or {}
     playlist_name = data.get('playlist_name', 'My Wrapped Playlist')
     track_uris = data.get('track_uris', [])
 
@@ -277,7 +340,14 @@ def create_playlist():
         playlist = sp.user_playlist_create(user=user_id, name=playlist_name, public=True)
         sp.playlist_add_items(playlist_id=playlist['id'], items=track_uris)
         return jsonify({"message": "Playlist created successfully!", "playlist_url": playlist['external_urls']['spotify']}), 201
+    except SpotifyException as se:
+        app.logger.warning(f"Spotify API error in /create-playlist: {se}")
+        if se.http_status == 401:
+            session.pop("token_info", None)
+            return jsonify({"error": "Unauthorized"}), 401
+        return jsonify({"error": str(se)}), se.http_status or 500
     except Exception as e:
+        app.logger.error(f"Error creating playlist: {e}")
         return jsonify({"error": str(e)}), 500
     
 @app.route("/logout", methods=["POST"])

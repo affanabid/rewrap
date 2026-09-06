@@ -1,14 +1,27 @@
 // pages/Login.jsx
 import React, { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
 import RegisterModal from '../components/RegisterModal';
 
 function Login() {
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+  const [searchParams] = useSearchParams();
+  const errorParam = searchParams.get('error');
+
+  const getErrorMessage = () => {
+    if (!errorParam) return null;
+    if (errorParam === 'access_denied') {
+      return 'Spotify authorization was canceled. Click below to continue whenever you are ready.';
+    }
+    return 'Authentication could not be completed. Please try again.';
+  };
 
   const handleLogin = () => {
     window.location.href = `${API_BASE_URL}/login`;
   };
+
+  const authError = getErrorMessage();
 
   return (
     <div className="login-container">
@@ -19,6 +32,23 @@ function Login() {
           Uncover your real listening story — top artists, tracks, and
           genre insights from your Spotify history.
         </p>
+
+        {authError && (
+          <div style={{
+            background: 'rgba(239, 68, 68, 0.15)',
+            border: '1px solid rgba(239, 68, 68, 0.4)',
+            borderRadius: '8px',
+            color: '#fca5a5',
+            padding: '10px 16px',
+            fontSize: '0.88rem',
+            margin: '0 auto 1.5rem auto',
+            maxWidth: '400px',
+            textAlign: 'center',
+            lineHeight: '1.4'
+          }}>
+            {authError}
+          </div>
+        )}
 
         <div className="login-actions" style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center', width: '100%' }}>
           <button className="login-button" onClick={handleLogin}>

@@ -9,8 +9,8 @@ import '../App.css';
 import { API_BASE_URL } from '../config';
 
 function Dashboard() {
-  const [loadingAuth, setLoadingAuth] = useState(true);
-  const [loggedIn, setLoggedIn] = useState(false);
+  const [authState, setAuthState] = useState('loading'); // 'loading' | 'authenticated' | 'unauthenticated' | 'session_expired' | 'server_error'
+  const [authErrorMessage, setAuthErrorMessage] = useState('');
   const [user, setUser] = useState(null);
   const [topArtists, setTopArtists] = useState([]);
   const [topTracks, setTopTracks] = useState([]);
@@ -79,6 +79,11 @@ function Dashboard() {
       const artistsRes = await fetch(`${API_BASE_URL}/top-artists?time_range=${selectedTimeRange}`, {
         credentials: 'include',
       });
+      if (artistsRes.status === 401) {
+        setAuthState('session_expired');
+        setUser(null);
+        return;
+      }
       if (artistsRes.ok) {
         const artistsData = await artistsRes.json();
         setTopArtists(artistsData.artists || []);
@@ -91,12 +96,17 @@ function Dashboard() {
       const tracksRes = await fetch(`${API_BASE_URL}/top-tracks?time_range=${selectedTimeRange}`, {
         credentials: 'include',
       });
+      if (tracksRes.status === 401) {
+        setAuthState('session_expired');
+        setUser(null);
+        return;
+      }
       if (tracksRes.ok) {
         const tracksData = await tracksRes.json();
-        setTopTracks(tracksData.items);
-        calculateTotalTrackDuration(tracksData.items);
-        processArtistsByTrackCount(tracksData.items);
-        processTrackDurationData(tracksData.items);
+        setTopTracks(tracksData.items || []);
+        calculateTotalTrackDuration(tracksData.items || []);
+        processArtistsByTrackCount(tracksData.items || []);
+        processTrackDurationData(tracksData.items || []);
       } else {
         console.error('Failed to fetch top tracks:', tracksRes.status);
         setTopTracks([]);
@@ -115,20 +125,27 @@ function Dashboard() {
   };
 
   const checkAuth = async () => {
+    setAuthState('loading');
+    setAuthErrorMessage('');
     try {
       const res = await fetch(`${API_BASE_URL}/me`, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setUser(data);
-        setLoggedIn(true);
+        setAuthState('authenticated');
+      } else if (res.status === 401) {
+        setUser(null);
+        setAuthState('unauthenticated');
       } else {
-        setLoggedIn(false);
+        setUser(null);
+        setAuthState('server_error');
+        setAuthErrorMessage(`Server returned status ${res.status}. If the backend is waking up, please wait a moment.`);
       }
     } catch (err) {
       console.error('Error checking auth:', err);
-      setLoggedIn(false);
-    } finally {
-      setLoadingAuth(false);
+      setUser(null);
+      setAuthState('server_error');
+      setAuthErrorMessage('Unable to connect to backend server. If the backend is waking up, please wait a moment and retry.');
     }
   };
 
@@ -137,10 +154,10 @@ function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (loggedIn && user) {
+    if (authState === 'authenticated' && user) {
       fetchTopData(timeRange);
     }
-  }, [loggedIn, user, timeRange]);
+  }, [authState, user, timeRange]);
 
   const handleLogin = () => {
     window.location.href = `${API_BASE_URL}/login`;
@@ -155,7 +172,7 @@ function Dashboard() {
     } catch (err) {
       console.error('Error logging out:', err);
     }
-    setLoggedIn(false);
+    setAuthState('unauthenticated');
     setUser(null);
     window.location.href = '/';
   };
@@ -194,6 +211,12 @@ function Dashboard() {
         }),
       });
 
+      if (res.status === 401) {
+        setAuthState('session_expired');
+        alert('Your Spotify session has expired. Please log in again.');
+        return;
+      }
+
       if (res.ok) {
         const data = await res.json();
         setNotification({
@@ -203,7 +226,7 @@ function Dashboard() {
         });
       } else {
         const errorData = await res.json();
-        alert(`Error creating playlist: ${errorData.error}`);
+        alert(`Error creating playlist: ${errorData.error || 'Failed to create playlist'}`);
       }
     } catch (err) {
       console.error('Error creating playlist:', err);
@@ -231,7 +254,7 @@ function Dashboard() {
     }
   };
 
-  if (loadingAuth) {
+  if (authState === 'loading') {
     return (
       <div className="dashboard-wrapper">
         <div className="dashboard-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
@@ -242,35 +265,92 @@ function Dashboard() {
     );
   }
 
+  if (authState === 'server_error') {
+    return (
+      <div className="dashboard-wrapper">
+        <div className="dashboard-container">
+          <div className="login-content" style={{ margin: '0 auto', textAlign: 'center', maxWidth: '480px' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔌</div>
+            <h2>Unable to Connect to Server</h2>
+            <p style={{ color: 'var(--text-secondary)', marginTop: '0.75rem', lineHeight: '1.5' }}>
+              {authErrorMessage || 'Could not reach backend service. If the server is sleeping, it may take 30–60 seconds to spin up.'}
+            </p>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '2rem' }}>
+              <button className="login-button" onClick={checkAuth}>
+                Retry Connection
+              </button>
+              <button 
+                className="login-button" 
+                onClick={() => (window.location.href = '/')}
+                style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.2)' }}
+              >
+                Go to Home
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (authState === 'unauthenticated') {
+    return (
+      <div className="dashboard-wrapper">
+        <div className="dashboard-container">
+          <div className="login-content" style={{ margin: '0 auto', textAlign: 'center', maxWidth: '460px' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎵</div>
+            <h2>Log In to View Dashboard</h2>
+            <p style={{ color: 'var(--text-secondary)', marginTop: '0.75rem' }}>
+              Connect your Spotify account to view your personalized listening insights and wrapped analytics.
+            </p>
+            <button className="login-button" onClick={handleLogin} style={{ marginTop: '2rem' }}>
+              Log In with Spotify
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (authState === 'session_expired') {
+    return (
+      <div className="dashboard-wrapper">
+        <div className="dashboard-container">
+          <div className="login-content" style={{ margin: '0 auto', textAlign: 'center', maxWidth: '460px' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⏱️</div>
+            <h2>Session Expired</h2>
+            <p style={{ color: 'var(--text-secondary)', marginTop: '0.75rem' }}>
+              Your Spotify session has timed out or was revoked. Please log in again to continue.
+            </p>
+            <button className="login-button" onClick={handleLogin} style={{ marginTop: '2rem' }}>
+              Log In Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="dashboard-wrapper">
       <div className="dashboard-container">
-        {!loggedIn ? (
-          <div className="login-content" style={{ margin: '0 auto' }}>
-            <h2>Your session has expired.</h2>
-            <button className="login-button" onClick={handleLogin} style={{ marginTop: '2rem' }}>
-              Login with Spotify
-            </button>
+        <Navbar user={user} onLogout={handleLogout} />
+
+        <div className="controls-bar">
+          <div className="select-container">
+            <label htmlFor="timeRangeSelect">Time Range</label>
+            <CustomDropdown
+              options={[
+                { value: 'short_term', label: 'Last 4 Weeks' },
+                { value: 'medium_term', label: 'Last 6 Months' },
+                { value: 'long_term', label: 'All Time' },
+              ]}
+              value={timeRange}
+              onChange={(val) => handleTimeRangeChange({ target: { value: val } })}
+            />
           </div>
-        ) : (
-          <>
-            <Navbar user={user} onLogout={handleLogout} />
 
-            <div className="controls-bar">
-              <div className="select-container">
-                <label htmlFor="timeRangeSelect">Time Range</label>
-                <CustomDropdown
-                  options={[
-                    { value: 'short_term', label: 'Last 4 Weeks' },
-                    { value: 'medium_term', label: 'Last 6 Months' },
-                    { value: 'long_term', label: 'All Time' },
-                  ]}
-                  value={timeRange}
-                  onChange={(val) => handleTimeRangeChange({ target: { value: val } })}
-                />
-              </div>
-
-              <div className="controls-actions">
+          <div className="controls-actions">
                 {topTracks.length > 0 && (
                   <button onClick={handleCreatePlaylistClick} className="create-playlist-button">
                     Create Playlist
@@ -521,8 +601,6 @@ function Dashboard() {
                 <p style={{ color: 'var(--text-secondary)' }}>Loading analytics...</p>
               )}
             </section>
-          </>
-        )}
 
         <PlaylistModal
           isOpen={isModalOpen}

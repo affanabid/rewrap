@@ -8,8 +8,8 @@ import { API_BASE_URL } from '../config';
 import './Discover.css';
 
 function Discover() {
-  const [loadingAuth, setLoadingAuth] = useState(true);
-  const [loggedIn, setLoggedIn] = useState(false);
+  const [authState, setAuthState] = useState('loading'); // 'loading' | 'authenticated' | 'unauthenticated' | 'session_expired' | 'server_error'
+  const [authErrorMessage, setAuthErrorMessage] = useState('');
   const [user, setUser] = useState(null);
   const [timeRange, setTimeRange] = useState('short_term');
   const [recommendations, setRecommendations] = useState([]);
@@ -26,10 +26,10 @@ function Discover() {
   }, []);
 
   useEffect(() => {
-    if (loggedIn) {
+    if (authState === 'authenticated') {
       fetchRecommendations(timeRange);
     }
-  }, [loggedIn, timeRange]);
+  }, [authState, timeRange]);
 
   // Clean up audio on unmount
   useEffect(() => {
@@ -39,20 +39,27 @@ function Discover() {
   }, []);
 
   const fetchUserData = async () => {
+    setAuthState('loading');
+    setAuthErrorMessage('');
     try {
       const res = await fetch(`${API_BASE_URL}/me`, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setUser(data);
-        setLoggedIn(true);
+        setAuthState('authenticated');
+      } else if (res.status === 401) {
+        setUser(null);
+        setAuthState('unauthenticated');
       } else {
-        setLoggedIn(false);
+        setUser(null);
+        setAuthState('server_error');
+        setAuthErrorMessage(`Server returned status ${res.status}. If the backend is waking up, please wait a moment.`);
       }
     } catch (err) {
       console.error('Error checking authentication status:', err);
-      setLoggedIn(false);
-    } finally {
-      setLoadingAuth(false);
+      setUser(null);
+      setAuthState('server_error');
+      setAuthErrorMessage('Unable to connect to backend server. If the backend is waking up, please wait a moment and retry.');
     }
   };
 
@@ -62,6 +69,12 @@ function Discover() {
       const res = await fetch(`${API_BASE_URL}/recommendations?time_range=${range}`, {
         credentials: 'include',
       });
+      if (res.status === 401) {
+        setAuthState('session_expired');
+        setUser(null);
+        setRecommendations([]);
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         setRecommendations(data.items || []);
@@ -95,6 +108,10 @@ function Discover() {
     }
   };
 
+  const handleLogin = () => {
+    window.location.href = `${API_BASE_URL}/login`;
+  };
+
   const handleLogout = async () => {
     try {
       await fetch(`${API_BASE_URL}/logout`, {
@@ -104,7 +121,7 @@ function Discover() {
     } catch (err) {
       console.error('Error logging out:', err);
     }
-    setLoggedIn(false);
+    setAuthState('unauthenticated');
     setUser(null);
     window.location.href = '/';
   };
@@ -135,6 +152,12 @@ function Discover() {
         }),
       });
 
+      if (res.status === 401) {
+        setAuthState('session_expired');
+        alert('Your Spotify session has expired. Please log in again.');
+        return;
+      }
+
       if (res.ok) {
         const data = await res.json();
         setNotification({
@@ -144,7 +167,7 @@ function Discover() {
         });
       } else {
         const errorData = await res.json();
-        alert(`Error creating playlist: ${errorData.error}`);
+        alert(`Error creating playlist: ${errorData.error || 'Failed to create playlist'}`);
       }
     } catch (err) {
       console.error('Error creating playlist:', err);
@@ -152,7 +175,7 @@ function Discover() {
     }
   };
 
-  if (loadingAuth) {
+  if (authState === 'loading') {
     return (
       <div className="dashboard-wrapper discover-wrapper">
         <div className="dashboard-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
@@ -163,143 +186,191 @@ function Discover() {
     );
   }
 
+  if (authState === 'server_error') {
+    return (
+      <div className="dashboard-wrapper discover-wrapper">
+        <div className="dashboard-container">
+          <div className="login-content" style={{ margin: '0 auto', textAlign: 'center', maxWidth: '480px' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔌</div>
+            <h2>Unable to Connect to Server</h2>
+            <p style={{ color: 'var(--text-secondary)', marginTop: '0.75rem', lineHeight: '1.5' }}>
+              {authErrorMessage || 'Could not reach backend service. If the server is sleeping, it may take 30–60 seconds to spin up.'}
+            </p>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '2rem' }}>
+              <button className="login-button" onClick={fetchUserData}>
+                Retry Connection
+              </button>
+              <button 
+                className="login-button" 
+                onClick={() => (window.location.href = '/')}
+                style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.2)' }}
+              >
+                Go to Home
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (authState === 'unauthenticated') {
+    return (
+      <div className="dashboard-wrapper discover-wrapper">
+        <div className="dashboard-container">
+          <div className="login-content" style={{ margin: '0 auto', textAlign: 'center', maxWidth: '460px' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎵</div>
+            <h2>Log In to Discover Music</h2>
+            <p style={{ color: 'var(--text-secondary)', marginTop: '0.75rem' }}>
+              Connect your Spotify account to discover new personalized songs based on your listening profile.
+            </p>
+            <button className="login-button" onClick={handleLogin} style={{ marginTop: '2rem' }}>
+              Log In with Spotify
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (authState === 'session_expired') {
+    return (
+      <div className="dashboard-wrapper discover-wrapper">
+        <div className="dashboard-container">
+          <div className="login-content" style={{ margin: '0 auto', textAlign: 'center', maxWidth: '460px' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⏱️</div>
+            <h2>Session Expired</h2>
+            <p style={{ color: 'var(--text-secondary)', marginTop: '0.75rem' }}>
+              Your Spotify session has timed out or was revoked. Please log in again to continue.
+            </p>
+            <button className="login-button" onClick={handleLogin} style={{ marginTop: '2rem' }}>
+              Log In Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="dashboard-wrapper discover-wrapper">
       <div className="dashboard-container">
-        {!loggedIn ? (
-          <div className="login-content" style={{ margin: '0 auto' }}>
-            <h2>Your session has expired.</h2>
-            <button className="login-button" onClick={() => (window.location.href = '/')} style={{ marginTop: '2rem' }}>
-              Login with Spotify
-            </button>
+        <Navbar user={user} onLogout={handleLogout} />
+
+        {/* Discover Hero Header */}
+        <div className="discover-hero">
+          <div className="hero-text">
+            <div className="title-with-info">
+              <h1>
+                Smart Music Discoveries
+                <button
+                  type="button"
+                  className="info-icon-btn"
+                  onClick={() => setIsInfoOpen(true)}
+                  title="Why Smart Discoveries?"
+                >
+                  💡
+                </button>
+              </h1>
+            </div>
+            <p>Personalized 12-track song recommendations tailored to your top listening habits.</p>
           </div>
-        ) : (
-          <>
-            <Navbar user={user} onLogout={handleLogout} />
 
-            {/* Discover Hero Header */}
-            <div className="discover-hero">
-              <div className="hero-text">
-                <div className="title-with-info">
-                  <h1>
-                    Smart Music Discoveries
-                    <button
-                      type="button"
-                      className="info-icon-btn"
-                      onClick={() => setIsInfoOpen(true)}
-                      title="Why Smart Discoveries?"
-                    >
-                      💡
-                    </button>
-                  </h1>
-                </div>
-                <p>Personalized 12-track song recommendations tailored to your top listening habits.</p>
-              </div>
-
-              {/* Controls Bar */}
-              <div className="discover-controls">
-                <div className="select-container">
-                  <label htmlFor="timeRangeSelect">Base Sound Vibe:</label>
-                  <div className="controls-row">
-                    <CustomDropdown
-                      options={[
-                        { value: 'short_term', label: 'Last 4 Weeks Vibe' },
-                        { value: 'medium_term', label: 'Last 6 Months Vibe' },
-                        { value: 'long_term', label: 'All Time Vibe' },
-                      ]}
-                      value={timeRange}
-                      onChange={(val) => setTimeRange(val)}
-                    />
-
-                    {recommendations.length > 0 && (
-                      <button
-                        onClick={handleCreatePlaylistClick}
-                        className="add-playlist-icon-btn"
-                        title="Save recommendations to Spotify Playlist"
-                      >
-                        ➕
-                      </button>
-                    )}
-                  </div>
-                </div>
+          {/* Controls Bar */}
+          <div className="discover-controls">
+            <div className="select-container">
+              <label htmlFor="timeRangeSelect">Base Sound Vibe:</label>
+              <div className="controls-row">
+                <CustomDropdown
+                  options={[
+                    { value: 'short_term', label: 'Last 4 Weeks Vibe' },
+                    { value: 'medium_term', label: 'Last 6 Months Vibe' },
+                    { value: 'long_term', label: 'All Time Vibe' },
+                  ]}
+                  value={timeRange}
+                  onChange={(val) => setTimeRange(val)}
+                />
               </div>
             </div>
 
-            {/* Recommendations Grid */}
-            <section className="dashboard-section discover-section">
-              {loading ? (
-                <div className="discover-loading">
-                  <div className="spinner"></div>
-                  <p>Curating 12 fresh recommendations for you...</p>
-                </div>
-              ) : recommendations.length > 0 ? (
-                <div className="recommendations-grid">
-                  {recommendations.map((track) => {
-                    const albumCover = track.album?.images?.[0]?.url;
-                    const isPlaying = playingTrackId === track.id;
+            <button
+              onClick={handleCreatePlaylistClick}
+              className="export-playlist-btn"
+              disabled={recommendations.length === 0}
+            >
+              Export Discoveries to Spotify
+            </button>
+          </div>
+        </div>
 
-                    return (
-                      <div key={track.id} className={`rec-card ${isPlaying ? 'playing' : ''}`}>
-                        <div className="rec-cover-wrapper">
-                          <img src={albumCover} alt={track.name} className="rec-cover" />
-                          {track.preview_url && (
-                            <button
-                              type="button"
-                              className={`play-preview-overlay ${isPlaying ? 'is-active' : ''}`}
-                              onClick={() => handlePlayPreview(track)}
-                              title={isPlaying ? 'Pause Preview' : 'Play 30s Audio Preview'}
-                            >
-                              {isPlaying ? '⏸️' : '▶️'}
-                            </button>
-                          )}
+        {/* Recommendations Section */}
+        <section className="discover-section">
+          {loading ? (
+            <div className="discover-loading">
+              <div className="spinner"></div>
+              <p>Curating your personalized tracks...</p>
+            </div>
+          ) : recommendations.length > 0 ? (
+            <div className="discover-grid">
+              {recommendations.map((track, index) => {
+                const isPlaying = playingTrackId === track.id;
+                const hasPreview = Boolean(track.preview_url);
+
+                return (
+                  <div
+                    className={`discover-card ${isPlaying ? 'playing' : ''}`}
+                    key={track.id}
+                  >
+                    <div className="cover-wrapper">
+                      <img
+                        src={track.album?.images?.[0]?.url || 'https://via.placeholder.com/300'}
+                        alt={track.name}
+                        className="track-cover"
+                      />
+                      {hasPreview ? (
+                        <button
+                          type="button"
+                          className={`play-btn-overlay ${isPlaying ? 'playing' : ''}`}
+                          onClick={() => handlePlayPreview(track)}
+                          title={isPlaying ? 'Pause preview' : 'Play 30s preview'}
+                        >
+                          {isPlaying ? '⏸' : '▶'}
+                        </button>
+                      ) : (
+                        <div className="no-preview-tag" title="Preview not available from Spotify">
+                          No Preview
                         </div>
+                      )}
+                    </div>
 
-                        <div className="rec-info">
-                          <span className="rec-title" title={track.name}>
-                            {track.name}
-                          </span>
-                          <span className="rec-artist" title={track.artists.map((a) => a.name).join(', ')}>
-                            {track.artists.map((a) => a.name).join(', ')}
-                          </span>
-                          <span className="rec-album">{track.album.name}</span>
-                        </div>
+                    <div className="track-info">
+                      <h4 className="track-title" title={track.name}>
+                        {track.name}
+                      </h4>
+                      <p className="track-artist" title={track.artists?.map((a) => a.name).join(', ')}>
+                        {track.artists?.map((a) => a.name).join(', ')}
+                      </p>
+                    </div>
 
-                        <div className="rec-actions">
-                          {track.preview_url && (
-                            <button
-                              type="button"
-                              className={`preview-pill-btn ${isPlaying ? 'playing-pill' : ''}`}
-                              onClick={() => handlePlayPreview(track)}
-                            >
-                              {isPlaying ? '⏸️ Pause 30s' : '▶️ 30s Sample'}
-                            </button>
-                          )}
-
-                          <a
-                            href={track.external_urls?.spotify}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="spotify-link-btn"
-                          >
-                            Listen
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: '4px', display: 'inline-block', verticalAlign: 'middle' }}>
-                              <line x1="7" y1="17" x2="17" y2="7"></line>
-                              <polyline points="7 7 17 7 17 17"></polyline>
-                            </svg>
-                          </a>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="discover-empty">
-                  <p>No recommendations found for this time range. Try switching your vibe!</p>
-                </div>
-              )}
-            </section>
-          </>
-        )}
+                    <a
+                      href={track.external_urls?.spotify}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="spotify-link-btn"
+                      title="Open in Spotify"
+                    >
+                      Open
+                    </a>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="discover-empty">
+              <p>No recommendations found for this time range. Try switching your vibe!</p>
+            </div>
+          )}
+        </section>
 
         {/* Modal for Playlist Export */}
         <PlaylistModal
